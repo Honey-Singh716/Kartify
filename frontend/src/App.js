@@ -1,0 +1,260 @@
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import LandingPage from './pages/LandingPage';
+import HomePage from './pages/HomePage';
+import CategoryPage from './pages/CategoryPage';
+import ShopPage from './pages/ShopPage';
+import ProductPage from './pages/ProductPage';
+import CartPage from './pages/CartPage';
+import CheckoutPage from './pages/CheckoutPage';
+import SellerSignup from './pages/SellerSignup';
+import SellerDashboard from './pages/SellerDashboard';
+import PickupVerification from './pages/PickupVerification';
+import CustomerDashboard from './pages/CustomerDashboard';
+import ProfilePage from './pages/ProfilePage';
+import Navbar from './components/Navbar';
+import 'leaflet/dist/leaflet.css';
+
+// =================== CONTEXT ===================
+export const AppContext = createContext(null);
+
+export const useApp = () => useContext(AppContext);
+
+const AppProvider = ({ children }) => {
+    const [user, setUser] = useState(() => {
+        try { return JSON.parse(localStorage.getItem('kartify_user')); } catch { return null; }
+    });
+    const [cart, setCart] = useState(() => {
+        try { return JSON.parse(localStorage.getItem('kartify_cart')) || { shopId: null, shopName: '', items: [] }; } catch { return { shopId: null, shopName: '', items: [] }; }
+    });
+    const [toast, setToast] = useState(null);
+    const [showAuth, setShowAuth] = useState(false);
+    const [authMode, setAuthMode] = useState('login');
+
+    useEffect(() => {
+        localStorage.setItem('kartify_cart', JSON.stringify(cart));
+    }, [cart]);
+
+    const login = useCallback((userData) => {
+        setUser(userData);
+        localStorage.setItem('kartify_user', JSON.stringify(userData));
+    }, []);
+
+    const logout = useCallback(() => {
+        setUser(null);
+        localStorage.removeItem('kartify_user');
+    }, []);
+
+    const showToast = useCallback((message, type = 'success') => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 3500);
+    }, []);
+
+    const addToCart = useCallback((product, shopId, shopName, variant = null) => {
+        setCart(prev => {
+            if (prev.shopId && prev.shopId !== shopId) {
+                return prev; // signal error outside
+            }
+            const itemId = variant ? `${product._id}-${variant._id}` : product._id;
+            const existing = prev.items.find(i => i.cartItemId === itemId);
+            if (existing) {
+                return {
+                    ...prev,
+                    items: prev.items.map(i => i.cartItemId === itemId ? { ...i, qty: i.qty + 1 } : i)
+                };
+            }
+            const newItem = {
+                ...product,
+                cartItemId: itemId,
+                variant_id: variant?._id,
+                color: variant?.color,
+                qty: 1
+            };
+            if (variant && variant.image) newItem.image = variant.image;
+
+            return { shopId, shopName, items: [...prev.items, newItem] };
+        });
+    }, []);
+
+    const removeFromCart = useCallback((cartItemId) => {
+        setCart(prev => {
+            const items = prev.items.filter(i => i.cartItemId !== cartItemId);
+            return items.length === 0 ? { shopId: null, shopName: '', items: [] } : { ...prev, items };
+        });
+    }, []);
+
+    const updateQty = useCallback((cartItemId, qty) => {
+        setCart(prev => ({
+            ...prev,
+            items: prev.items.map(i => i.cartItemId === cartItemId ? { ...i, qty } : i)
+        }));
+    }, []);
+
+    const clearCart = useCallback(() => {
+        setCart({ shopId: null, shopName: '', items: [] });
+    }, []);
+
+    const openAuth = useCallback((mode = 'login') => {
+        setAuthMode(mode);
+        setShowAuth(true);
+    }, []);
+
+    return (
+        <AppContext.Provider value={{
+            user, login, logout,
+            cart, addToCart, removeFromCart, updateQty, clearCart,
+            toast, showToast,
+            showAuth, setShowAuth, authMode, setAuthMode, openAuth
+        }}>
+            {children}
+        </AppContext.Provider>
+    );
+};
+
+// =================== AUTH MODAL ===================
+const API = 'http://localhost:5000/api';
+
+const AuthModal = () => {
+    const { showAuth, setShowAuth, authMode, setAuthMode, login, showToast, openAuth } = useApp();
+    const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' });
+    const [role, setRole] = useState('customer');
+    const [loading, setLoading] = useState(false);
+
+    if (!showAuth) return null;
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            const endpoint = authMode === 'login' ? '/auth/login' : '/auth/register';
+            const body = authMode === 'login'
+                ? { email: form.email, password: form.password }
+                : { name: form.name, email: form.email, password: form.password, phone: form.phone, role };
+            const res = await fetch(API + endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message);
+            login(data);
+            setShowAuth(false);
+            showToast(`Welcome, ${data.name}! 🎉`);
+            if (data.role === 'seller') {
+                window.location.href = '/seller/dashboard';
+            } else if (data.role === 'customer') {
+                window.location.href = '/customer/dashboard';
+            }
+        } catch (err) {
+            showToast(err.message, 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="modal-backdrop" onClick={() => setShowAuth(false)}>
+            <div className="modal auth-modal" onClick={e => e.stopPropagation()}>
+                <h2>{authMode === 'login' ? 'Welcome Back' : 'Create Account'}</h2>
+                <p>{authMode === 'login' ? 'Sign in to continue shopping' : 'Join Kartify today'}</p>
+                <form onSubmit={handleSubmit}>
+                    {authMode === 'register' && (
+                        <>
+                            <div className="form-group">
+                                <label>Sign up as</label>
+                                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setRole('customer')}
+                                        style={{ flex: 1, padding: '8px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: '1px solid var(--border)', background: role === 'customer' ? 'var(--primary)' : 'var(--bg-card2)', color: role === 'customer' ? 'white' : 'var(--text-muted)', cursor: 'pointer' }}>
+                                        👤 Customer
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setRole('seller')}
+                                        style={{ flex: 1, padding: '8px', borderRadius: 8, fontSize: 13, fontWeight: 600, border: '1px solid var(--border)', background: role === 'seller' ? 'var(--primary)' : 'var(--bg-card2)', color: role === 'seller' ? 'white' : 'var(--text-muted)', cursor: 'pointer' }}>
+                                        🏪 Seller
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label>Name</label>
+                                <input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Your full name" />
+                            </div>
+                            <div className="form-group">
+                                <label>Phone</label>
+                                <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="Phone number" />
+                            </div>
+                        </>
+                    ) || (
+                            <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20 }}>Please sign in to continue.</p>
+                        )}
+                    <div className="form-group">
+                        <label>Email</label>
+                        <input required type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="you@example.com" />
+                    </div>
+                    <div className="form-group">
+                        <label>Password</label>
+                        <input required type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="••••••••" />
+                    </div>
+                    <button className="btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 8 }} disabled={loading}>
+                        {loading ? 'Please wait...' : authMode === 'login' ? 'Sign In' : 'Create Account'}
+                    </button>
+                </form>
+                <div className="switch-link">
+                    {authMode === 'login' ? (
+                        <>Don't have an account? <span onClick={() => setAuthMode('register')}>Register</span></>
+                    ) : (
+                        <>Already have an account? <span onClick={() => setAuthMode('login')}>Sign In</span></>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// =================== TOAST ===================
+const Toast = () => {
+    const { toast } = useApp();
+    if (!toast) return null;
+    const icons = { success: '✅', error: '❌', warning: '⚠️' };
+    return (
+        <div className={`toast ${toast.type}`}>
+            <span>{icons[toast.type] || '✅'}</span>
+            <span>{toast.message}</span>
+        </div>
+    );
+};
+
+// =================== APP ===================
+export default function App() {
+    return (
+        <AppProvider>
+            <Router>
+                <Routes>
+                    <Route path="/" element={<LandingPage />} />
+                    <Route path="/*" element={
+                        <>
+                            <Navbar />
+                            <Routes>
+                                <Route path="/home" element={<HomePage />} />
+                                <Route path="/category/:cat" element={<CategoryPage />} />
+                                <Route path="/shop/:id" element={<ShopPage />} />
+                                <Route path="/product/:id" element={<ProductPage />} />
+                                <Route path="/cart" element={<CartPage />} />
+                                <Route path="/checkout" element={<CheckoutPage />} />
+                                <Route path="/seller/signup" element={<SellerSignup />} />
+                                <Route path="/seller/dashboard" element={<SellerDashboard />} />
+                                <Route path="/seller/pickup-verification" element={<PickupVerification />} />
+                                <Route path="/customer/dashboard" element={<CustomerDashboard />} />
+                                <Route path="/customer/profile" element={<ProfilePage />} />
+                            </Routes>
+                        </>
+                    } />
+                </Routes>
+                <AuthModal />
+                <Toast />
+            </Router>
+        </AppProvider>
+    );
+}
