@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../App';
+import { calculateDistance } from '../utils/geo';
 
 const StarRating = ({ rating }) => {
     return (
@@ -13,7 +14,7 @@ const StarRating = ({ rating }) => {
     );
 };
 
-export default function ProductCard({ product }) {
+export default function ProductCard({ product, userLocation }) {
     const { cart, addToCart, openAuth, user, showToast } = useApp();
 
     const handleAddToCart = (e) => {
@@ -60,7 +61,14 @@ export default function ProductCard({ product }) {
                     {product.name}
                 </h3>
                 {typeof product.shop_id === 'object' && product.shop_id?.name && (
-                    <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 8 }}>🏪 {product.shop_id.name}</p>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <p style={{ fontSize: 12, color: 'var(--text-dim)' }}>🏪 {product.shop_id.name}</p>
+                        {userLocation && product.shop_id.location?.lat && (
+                            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--primary-light)' }}>
+                                📍 {calculateDistance(userLocation.lat, userLocation.lng, product.shop_id.location.lat, product.shop_id.location.lng).toFixed(1)} km
+                            </span>
+                        )}
+                    </div>
                 )}
                 <StarRating rating={product.rating} />
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>

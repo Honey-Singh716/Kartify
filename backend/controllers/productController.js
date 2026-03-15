@@ -120,7 +120,7 @@ const getAllProducts = async (req, res) => {
         if (category) filter.category = category;
         if (shop_id) filter.shop_id = shop_id;
         if (search) filter.name = { $regex: search, $options: 'i' };
-        const products = await Product.find(filter).populate('shop_id', 'name city');
+        const products = await Product.find(filter).populate('shop_id', 'name city location');
         res.json(products.map(sanitizeProductSpecs));
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -129,7 +129,7 @@ const getAllProducts = async (req, res) => {
 
 const getProductById = async (req, res) => {
     try {
-        const product = await Product.findById(req.params.id).populate('shop_id', 'name city address phone');
+        const product = await Product.findById(req.params.id).populate('shop_id', 'name city address phone location');
         if (!product) return res.status(404).json({ message: 'Product not found' });
         res.json(sanitizeProductSpecs(product));
     } catch (err) {

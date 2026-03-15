@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import ShopCard from '../components/ShopCard';
 import ProductCard from '../components/ProductCard';
+import ShopMap from '../components/ShopMap';
+import { useApp } from '../App';
+import { getUserLocation, calculateDistance } from '../utils/geo';
 
 const API = 'http://localhost:5000/api';
 
@@ -18,6 +21,8 @@ export default function CategoryPage() {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [view, setView] = useState('shops');
+    const [userLocation, setUserLocation] = useState(null);
+    const { showToast } = useApp();
 
     useEffect(() => {
         const fetchData = async () => {
@@ -34,7 +39,26 @@ export default function CategoryPage() {
             finally { setLoading(false); }
         };
         fetchData();
+
+        // Get user location for map and sorting
+        getUserLocation()
+            .then(pos => setUserLocation(pos))
+            .catch(() => console.log('Location access denied for sorting'));
     }, [category]);
+
+    const sortedShops = [...shops].sort((a, b) => {
+        if (!userLocation || !a.location?.lat || !b.location?.lat) return 0;
+        const distA = calculateDistance(userLocation.lat, userLocation.lng, a.location.lat, a.location.lng);
+        const distB = calculateDistance(userLocation.lat, userLocation.lng, b.location.lat, b.location.lng);
+        return distA - distB;
+    });
+
+    const sortedProducts = [...products].sort((a, b) => {
+        if (!userLocation || !a.shop_id?.location?.lat || !b.shop_id?.location?.lat) return 0;
+        const distA = calculateDistance(userLocation.lat, userLocation.lng, a.shop_id.location.lat, a.shop_id.location.lng);
+        const distB = calculateDistance(userLocation.lat, userLocation.lng, b.shop_id.location.lat, b.shop_id.location.lng);
+        return distA - distB;
+    });
 
     if (loading) return <div className="page"><div className="spinner-wrap"><div className="spinner" /></div></div>;
 
@@ -77,6 +101,13 @@ export default function CategoryPage() {
                     </button>
                 </div>
 
+                {/* Map View for Category */}
+                {view === 'shops' && shops.length > 0 && (
+                    <div style={{ marginBottom: 40 }}>
+                        <ShopMap shops={shops} userLocation={userLocation} />
+                    </div>
+                )}
+
                 {view === 'shops' ? (
                     shops.length === 0 ? (
                         <div className="empty-state">
@@ -86,7 +117,7 @@ export default function CategoryPage() {
                         </div>
                     ) : (
                         <div className="grid-3">
-                            {shops.map(s => <ShopCard key={s._id} shop={s} />)}
+                            {sortedShops.map(s => <ShopCard key={s._id} shop={s} userLocation={userLocation} />)}
                         </div>
                     )
                 ) : (
@@ -98,7 +129,7 @@ export default function CategoryPage() {
                         </div>
                     ) : (
                         <div className="grid-4">
-                            {products.map(p => <ProductCard key={p._id} product={p} />)}
+                            {sortedProducts.map(p => <ProductCard key={p._id} product={p} userLocation={userLocation} />)}
                         </div>
                     )
                 )}

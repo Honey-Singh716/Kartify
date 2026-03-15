@@ -18,8 +18,18 @@ export default function Navbar() {
     const cartCount = cart.items.reduce((sum, i) => sum + i.qty, 0);
 
     const handleSearch = (e) => {
-        e.preventDefault();
-        if (search.trim()) navigate(`/home?search=${encodeURIComponent(search.trim())}`);
+        if (e) e.preventDefault();
+        const query = search.trim();
+        if (!query || query === '.') return;
+        navigate(`/home?q=${encodeURIComponent(query)}`);
+    };
+
+    const handleSearchChange = (e) => {
+        const value = e.target.value;
+        setSearch(value);
+        if (!value.trim()) {
+            navigate('/home');
+        }
     };
 
     return (
@@ -72,7 +82,7 @@ export default function Navbar() {
                     <div style={{ position: 'relative' }}>
                         <input
                             value={search}
-                            onChange={e => setSearch(e.target.value)}
+                            onChange={handleSearchChange}
                             placeholder="Search products, shops..."
                             style={{ paddingLeft: 44, borderRadius: 10, height: 42 }}
                         />

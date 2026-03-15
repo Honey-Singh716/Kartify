@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import ShopMap from '../components/ShopMap';
 import { useApp } from '../App';
 
 const API = 'http://localhost:5000/api';
@@ -9,6 +10,7 @@ export default function CustomerDashboard() {
     const navigate = useNavigate();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showMapFor, setShowMapFor] = useState(null); // orderId
 
     useEffect(() => {
         if (!user) {
@@ -26,6 +28,7 @@ export default function CustomerDashboard() {
                     headers: { Authorization: `Bearer ${user.token}` }
                 });
                 const data = await res.json();
+                // Ensure unique objects with location data if available (populated by backend update)
                 setOrders(Array.isArray(data) ? data : []);
             } catch (err) {
                 console.error(err);
@@ -97,10 +100,29 @@ export default function CustomerDashboard() {
                                             <span className={`badge badge-${(order.status === 'delivered' || order.status === 'picked_up') ? 'success' : 'warning'}`} style={{ textTransform: 'capitalize' }}>
                                                 {order.status.replace(/_/g, ' ')}
                                             </span>
-                                            {order.deliveryType === 'pickup' && order.pickupCode && (
-                                                <div style={{ textAlign: 'right', background: 'rgba(16,185,129,0.05)', border: '1px solid var(--success)', borderRadius: 12, padding: '12px 16px' }}>
-                                                    <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Pickup Code: <span style={{ color: 'var(--success)', fontSize: 18, letterSpacing: '0.05em' }}>{order.pickupCode}</span></p>
-                                                    <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>Show this code to the shop owner when collecting your order.</p>
+                                            {order.deliveryType === 'pickup' && order.status !== 'picked_up' && (
+                                                <div style={{ marginTop: 12 }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                                                        <div style={{ background: 'rgba(16,185,129,0.05)', border: '1px solid var(--success)', borderRadius: 12, padding: '12px 16px' }}>
+                                                            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Pickup Code: <span style={{ color: 'var(--success)', fontSize: 18, letterSpacing: '0.05em' }}>{order.pickupCode}</span></p>
+                                                            <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>Show this code to the shop owner.</p>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => setShowMapFor(showMapFor === order._id ? null : order._id)}
+                                                            className="btn-secondary"
+                                                            style={{ padding: '8px 16px', fontSize: 12, border: 'none' }}
+                                                        >
+                                                            {showMapFor === order._id ? 'Hide Map' : '📍 View Shop Location'}
+                                                        </button>
+                                                    </div>
+                                                    {showMapFor === order._id && order.shop_id?.location && (
+                                                        <div style={{ animation: 'slideDown 0.3s ease' }}>
+                                                            <ShopMap location={order.shop_id.location} shopName={order.shop_id.name} height="250px" />
+                                                            <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 8, textAlign: 'center' }}>
+                                                                Address: {order.shop_id.address || 'Check shop page for details'}
+                                                            </p>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>

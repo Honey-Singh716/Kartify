@@ -4,6 +4,7 @@ import ProductCard from '../components/ProductCard';
 import ReviewCard from '../components/ReviewCard';
 import ShopMap from '../components/ShopMap';
 import { useApp } from '../App';
+import { openDirections } from '../utils/geo';
 
 const API = 'http://localhost:5000/api';
 
@@ -113,15 +114,13 @@ export default function ShopPage() {
                     <div style={{ marginBottom: 48 }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                             <h2 style={{ fontSize: 20, fontWeight: 800 }}>Shop Location</h2>
-                            <a
-                                href={`https://www.openstreetmap.org/directions?from=&to=${shop.location.lat},${shop.location.lng}`}
-                                target="_blank"
-                                rel="noreferrer"
+                            <button
+                                onClick={() => openDirections(shop.location, showToast)}
                                 className="btn-secondary"
-                                style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}
+                                style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, border: 'none', cursor: 'pointer' }}
                             >
                                 🗺️ Get Directions
-                            </a>
+                            </button>
                         </div>
                         <ShopMap location={shop.location} shopName={shop.name} />
                     </div>

@@ -1,5 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useApp } from '../App';
+import { openDirections, calculateDistance } from '../utils/geo';
 
 const StarRating = ({ rating }) => (
     <div className="stars">
@@ -10,7 +12,11 @@ const StarRating = ({ rating }) => (
     </div>
 );
 
-export default function ShopCard({ shop }) {
+export default function ShopCard({ shop, userLocation }) {
+    const { showToast } = useApp();
+    const distance = (userLocation && shop.location?.lat && shop.location?.lng)
+        ? calculateDistance(userLocation.lat, userLocation.lng, shop.location.lat, shop.location.lng)
+        : null;
     const bannerUrl = shop.banner
         ? shop.banner
         : `https://ui-avatars.com/api/?name=${encodeURIComponent(shop.name)}&background=5429c4&color=fff&size=400&length=2`;
@@ -42,7 +48,14 @@ export default function ShopCard({ shop }) {
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
                     <div>
                         <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>{shop.name}</h3>
-                        <span className="badge badge-primary" style={{ fontSize: 11, marginBottom: 8, display: 'inline-block' }}>{shop.category}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                            <span className="badge badge-primary" style={{ fontSize: 11 }}>{shop.category}</span>
+                            {distance !== null && (
+                                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--primary-light)' }}>
+                                    📍 {distance.toFixed(1)} km away
+                                </span>
+                            )}
+                        </div>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                         <StarRating rating={shop.rating} />
@@ -56,15 +69,16 @@ export default function ShopCard({ shop }) {
                 )}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                     {shop.location && shop.location.lat && shop.location.lng ? (
-                        <a
-                            href={`https://www.openstreetmap.org/directions?from=&to=${shop.location.lat},${shop.location.lng}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            style={{ fontSize: 12, color: 'var(--primary-light)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}
+                        <button
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                openDirections(shop.location, showToast);
+                            }}
+                            style={{ fontSize: 12, color: 'var(--primary-light)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                         >
                             📍 Directions
-                        </a>
+                        </button>
                     ) : shop.city && (
                         <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>📍 {shop.city}</span>
                     )}

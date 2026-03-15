@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import ShopCard from '../components/ShopCard';
+import ShopMap from '../components/ShopMap';
+import { useApp } from '../App';
+import { getUserLocation, calculateDistance } from '../utils/geo';
 
 const API = 'http://localhost:5000/api';
 
@@ -23,14 +26,31 @@ export default function HomePage() {
     const [loading, setLoading] = useState(true);
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const searchQuery = searchParams.get('search') || '';
+    const rawQuery = searchParams.get('q') || '';
+    const searchQuery = (rawQuery.trim() === '' || rawQuery.trim() === '.') ? '' : rawQuery.trim();
+    const [userLocation, setUserLocation] = useState(null);
+    const { showToast } = useApp();
 
     useEffect(() => {
         const fetchData = async () => {
+            // Strict validation: Clear results and stop if query is empty or invalid
+            const q = searchParams.get('q') || '';
+            if (!q.trim() || q.trim() === '.') {
+                setLoading(true);
+                try {
+                    const sRes = await fetch(`${API}/shops`);
+                    const sData = await sRes.json();
+                    setShops(Array.isArray(sData) ? sData : []);
+                    setProducts([]); // Clear any previous products if query is invalid
+                } catch (err) { console.error(err); }
+                finally { setLoading(false); }
+                return;
+            }
+
             setLoading(true);
             try {
                 const [pRes, sRes] = await Promise.all([
-                    fetch(`${API}/products${searchQuery ? `?search=${encodeURIComponent(searchQuery)}` : ''}`),
+                    fetch(`${API}/products?search=${encodeURIComponent(q.trim())}`),
                     fetch(`${API}/shops`)
                 ]);
                 const [pData, sData] = await Promise.all([pRes.json(), sRes.json()]);
@@ -43,7 +63,26 @@ export default function HomePage() {
             }
         };
         fetchData();
+
+        // Get user location
+        getUserLocation()
+            .then(pos => setUserLocation(pos))
+            .catch(() => console.log('Location access denied'));
     }, [searchQuery]);
+
+    const sortedShops = [...shops].sort((a, b) => {
+        if (!userLocation || !a.location?.lat || !b.location?.lat) return 0;
+        const distA = calculateDistance(userLocation.lat, userLocation.lng, a.location.lat, a.location.lng);
+        const distB = calculateDistance(userLocation.lat, userLocation.lng, b.location.lat, b.location.lng);
+        return distA - distB;
+    });
+
+    const sortedProducts = [...products].sort((a, b) => {
+        if (!userLocation || !a.shop_id?.location?.lat || !b.shop_id?.location?.lat) return 0;
+        const distA = calculateDistance(userLocation.lat, userLocation.lng, a.shop_id.location.lat, a.shop_id.location.lng);
+        const distB = calculateDistance(userLocation.lat, userLocation.lng, b.shop_id.location.lat, b.shop_id.location.lng);
+        return distA - distB;
+    });
 
     if (loading) return <div className="page"><div className="spinner-wrap"><div className="spinner" /></div></div>;
 
@@ -82,6 +121,17 @@ export default function HomePage() {
                     <div style={{ marginBottom: 32 }}>
                         <h2 style={{ fontSize: 22, fontWeight: 700 }}>Search results for "{searchQuery}"</h2>
                         <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 4 }}>{products.length} products found</p>
+
+                        {/* Map for Search Results */}
+                        {products.length > 0 && (
+                            <div style={{ marginTop: 24 }}>
+                                <ShopMap
+                                    shops={Array.from(new Set(products.filter(p => p.shop_id).map(p => p.shop_id._id)))
+                                        .map(id => products.find(p => p.shop_id._id === id).shop_id)}
+                                    userLocation={userLocation}
+                                />
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -131,7 +181,7 @@ export default function HomePage() {
                         </div>
                     ) : (
                         <div className="grid-4">
-                            {products.slice(0, 12).map(p => <ProductCard key={p._id} product={p} />)}
+                            {sortedProducts.slice(0, 12).map(p => <ProductCard key={p._id} product={p} userLocation={userLocation} />)}
                         </div>
                     )}
                 </section>
@@ -153,7 +203,7 @@ export default function HomePage() {
                             </div>
                         ) : (
                             <div className="grid-3">
-                                {shops.slice(0, 6).map(s => <ShopCard key={s._id} shop={s} />)}
+                                {sortedShops.slice(0, 6).map(s => <ShopCard key={s._id} shop={s} userLocation={userLocation} />)}
                             </div>
                         )}
                     </section>

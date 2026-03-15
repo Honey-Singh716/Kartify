@@ -324,7 +324,7 @@ export default function SellerDashboard() {
                                 <h1 style={{ fontSize: 24, fontWeight: 800 }}>Products</h1>
                                 <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 4 }}>{products.length} products in your shop</p>
                             </div>
-                            <button className="btn-primary" onClick={() => { setEditingProduct(null); setProductForm({ name: '', category: '', description: '', price: '', stock: '', image: null, features: '', specifications: {}, medicalInfo: {} }); setShowProductForm(true); }}>
+                            <button className="btn-primary" onClick={() => { setEditingProduct(null); setProductForm({ name: '', category: '', description: '', price: '', stock: '', image: null, features: '', specifications: {}, medicalInfo: {}, variants: [] }); setShowProductForm(true); }}>
                                 + Add Product
                             </button>
                         </div>
@@ -447,7 +447,7 @@ export default function SellerDashboard() {
                                         <button type="button" onClick={() => setProductForm({ ...productForm, variants: [...productForm.variants, { color: '', stock: 0, imageFile: null, preview: null }] })} className="btn-secondary" style={{ padding: '6px 12px', fontSize: 12 }}>+ Add Color</button>
                                     </h4>
 
-                                    {productForm.variants.map((v, i) => (
+                                    {productForm.variants?.map((v, i) => (
                                         <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 40px', gap: 12, marginBottom: 12, alignItems: 'end', background: 'var(--bg-card)', padding: 12, borderRadius: 12 }}>
                                             <div className="form-group" style={{ marginBottom: 0 }}>
                                                 <label style={{ fontSize: 11 }}>Color</label>
@@ -481,7 +481,7 @@ export default function SellerDashboard() {
                                             <button type="button" onClick={() => setProductForm({ ...productForm, variants: productForm.variants.filter((_, idx) => idx !== i) })} style={{ height: 38, background: 'var(--danger-light)', border: 'none', borderRadius: 8, color: 'white', cursor: 'pointer' }}>×</button>
                                         </div>
                                     ))}
-                                    {productForm.variants.length === 0 && <p style={{ fontSize: 12, color: 'var(--text-dim)', textAlign: 'center' }}>No color variants added yet.</p>}
+                                    {(productForm.variants?.length || 0) === 0 && <p style={{ fontSize: 12, color: 'var(--text-dim)', textAlign: 'center' }}>No color variants added yet.</p>}
                                 </div>
                                 <div style={{ display: 'flex', gap: 12 }}>
                                     <button type="submit" className="btn-primary">{editingProduct ? 'Update Product' : 'Add Product'}</button>
@@ -558,7 +558,7 @@ export default function SellerDashboard() {
 
                                             {/* Items */}
                                             <div style={{ background: 'var(--bg-card2)', borderRadius: 10, padding: '12px 16px', marginBottom: 16 }}>
-                                                {o.items.map((item, i) => (
+                                                {o.items?.map((item, i) => (
                                                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0' }}>
                                                         <span style={{ color: 'var(--text-muted)' }}>{item.name} × {item.quantity}</span>
                                                         <span style={{ fontWeight: 600 }}>₹{(item.price * item.quantity).toLocaleString('en-IN')}</span>
