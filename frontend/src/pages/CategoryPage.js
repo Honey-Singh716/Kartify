@@ -30,7 +30,7 @@ export default function CategoryPage() {
             try {
                 const [sRes, pRes] = await Promise.all([
                     fetch(`${API}/shops?category=${encodeURIComponent(category)}`),
-                    fetch(`${API}/products?category=${encodeURIComponent(category)}`)
+                    fetch(`${API}/products/category/${encodeURIComponent(category)}`)
                 ]);
                 const [sData, pData] = await Promise.all([sRes.json(), pRes.json()]);
                 setShops(Array.isArray(sData) ? sData : []);
@@ -54,9 +54,9 @@ export default function CategoryPage() {
     });
 
     const sortedProducts = [...products].sort((a, b) => {
-        if (!userLocation || !a.shop_id?.location?.lat || !b.shop_id?.location?.lat) return 0;
-        const distA = calculateDistance(userLocation.lat, userLocation.lng, a.shop_id.location.lat, a.shop_id.location.lng);
-        const distB = calculateDistance(userLocation.lat, userLocation.lng, b.shop_id.location.lat, b.shop_id.location.lng);
+        if (!userLocation || !a.shop?.location?.lat || !b.shop?.location?.lat) return 0;
+        const distA = calculateDistance(userLocation.lat, userLocation.lng, a.shop.location.lat, a.shop.location.lng);
+        const distB = calculateDistance(userLocation.lat, userLocation.lng, b.shop.location.lat, b.shop.location.lng);
         return distA - distB;
     });
 
@@ -104,7 +104,7 @@ export default function CategoryPage() {
                 {/* Map View for Category */}
                 {view === 'shops' && shops.length > 0 && (
                     <div style={{ marginBottom: 40 }}>
-                        <ShopMap shops={shops} userLocation={userLocation} />
+                        <ShopMap shops={shops.filter(s => s.category === category)} userLocation={userLocation} height="350px" />
                     </div>
                 )}
 

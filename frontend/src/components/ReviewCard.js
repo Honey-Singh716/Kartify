@@ -3,7 +3,7 @@ import React from 'react';
 export default function ReviewCard({ review }) {
     const stars = Math.round(review.rating || 0);
     const date = new Date(review.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-    const name = review.userName || (review.user_id && review.user_id.name) || 'Anonymous';
+    const name = review.userName || (review.user && review.user.name) || (review.user_id && review.user_id.name) || 'Anonymous';
 
     return (
         <div style={{

@@ -3,7 +3,8 @@ const router = express.Router();
 const {
     createProduct, getAllProducts, getProductById,
     getMyProducts, updateProduct, deleteProduct,
-    addProductReview, getProductReviews
+    addProductReview, getProductReviews, getProductsByShop,
+    getProductsByCategory
 } = require('../controllers/productController');
 const { protect, sellerOnly } = require('../middleware/authMiddleware');
 const multer = require('multer');
@@ -20,8 +21,10 @@ const upload = multer({ storage });
 
 router.get('/', getAllProducts);
 router.get('/my-products', protect, sellerOnly, getMyProducts);
-router.get('/:id', getProductById);
+router.get('/shop/:shopId', getProductsByShop);
+router.get('/category/:category', getProductsByCategory);
 router.get('/:id/reviews', getProductReviews);
+router.get('/:id', getProductById);
 router.post('/', protect, sellerOnly, upload.any(), createProduct);
 router.put('/:id', protect, sellerOnly, upload.any(), updateProduct);
 router.delete('/:id', protect, sellerOnly, deleteProduct);

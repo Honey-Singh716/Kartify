@@ -20,6 +20,7 @@ const sanitizeProductSpecs = (product) => {
     return obj;
 };
 
+
 const parseSpecifications = (body) => {
     const specs = {};
     Object.keys(body).forEach(key => {
@@ -80,7 +81,7 @@ const parseVariants = (body, files) => {
 
 const createProduct = async (req, res) => {
     try {
-        const shop = await Shop.findOne({ seller_id: req.user._id });
+        const shop = await Shop.findOne({ owner: req.user._id });
         if (!shop) return res.status(404).json({ message: 'Create a shop first' });
 
         const specifications = parseSpecifications(req.body);
@@ -89,7 +90,8 @@ const createProduct = async (req, res) => {
 
         const productData = {
             ...req.body,
-            shop_id: shop._id,
+            shop: shop._id,
+            seller: req.user._id,
             specifications,
             medicalInfo,
             variants
@@ -107,6 +109,7 @@ const createProduct = async (req, res) => {
         }
 
         const product = await Product.create(productData);
+        console.log("Product created. ShopId:", shop._id);
         res.status(201).json(product);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -115,12 +118,13 @@ const createProduct = async (req, res) => {
 
 const getAllProducts = async (req, res) => {
     try {
-        const { category, shop_id, search } = req.query;
+        const { search } = req.query;
         let filter = {};
-        if (category) filter.category = category;
-        if (shop_id) filter.shop_id = shop_id;
         if (search) filter.name = { $regex: search, $options: 'i' };
-        const products = await Product.find(filter).populate('shop_id', 'name city location');
+
+        const products = await Product.find(filter).populate('shop');
+
+        console.log("Products found (homepage/search):", products.length);
         res.json(products.map(sanitizeProductSpecs));
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -129,7 +133,7 @@ const getAllProducts = async (req, res) => {
 
 const getProductById = async (req, res) => {
     try {
-        const product = await Product.findById(req.params.id).populate('shop_id', 'name city address phone location');
+        const product = await Product.findById(req.params.id).populate('shop', 'name city address phone location');
         if (!product) return res.status(404).json({ message: 'Product not found' });
         res.json(sanitizeProductSpecs(product));
     } catch (err) {
@@ -139,9 +143,9 @@ const getProductById = async (req, res) => {
 
 const getMyProducts = async (req, res) => {
     try {
-        const shop = await Shop.findOne({ seller_id: req.user._id });
-        if (!shop) return res.status(404).json({ message: 'No shop found' });
-        const products = await Product.find({ shop_id: shop._id });
+        const products = await Product.find({ seller: req.user._id }).populate('shop');
+        console.log("SellerId:", req.user._id);
+        console.log("Products found (my-products):", products.length);
         res.json(products);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -150,8 +154,9 @@ const getMyProducts = async (req, res) => {
 
 const updateProduct = async (req, res) => {
     try {
-        const product = await Product.findById(req.params.id);
-        if (!product) return res.status(404).json({ message: 'Product not found' });
+        // Enforce ownership: seller must be the one who created it
+        const product = await Product.findOne({ _id: req.params.id, seller: req.user._id });
+        if (!product) return res.status(404).json({ message: 'Product not found or access denied' });
 
         const specifications = parseSpecifications(req.body);
         const medicalInfo = parseMedicalInfo(req.body);
@@ -161,7 +166,10 @@ const updateProduct = async (req, res) => {
             ...req.body,
             specifications,
             medicalInfo,
-            variants
+            variants,
+            // Force linkage preservation
+            shop: product.shop,
+            seller: req.user._id
         };
 
         const mainFile = req.files?.find(f => f.fieldname === 'image');
@@ -178,6 +186,7 @@ const updateProduct = async (req, res) => {
         }
 
         const updatedProduct = await Product.findByIdAndUpdate(req.params.id, updateData, { new: true });
+        console.log("Product updated for shop:", product.shop);
         res.json(updatedProduct);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -186,7 +195,8 @@ const updateProduct = async (req, res) => {
 
 const deleteProduct = async (req, res) => {
     try {
-        await Product.findByIdAndDelete(req.params.id);
+        const product = await Product.findOneAndDelete({ _id: req.params.id, seller: req.user._id });
+        if (!product) return res.status(404).json({ message: 'Product not found or access denied' });
         res.json({ message: 'Product deleted' });
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -195,15 +205,19 @@ const deleteProduct = async (req, res) => {
 
 const addProductReview = async (req, res) => {
     try {
+        const product = await Product.findById(req.params.id);
+        if (!product) return res.status(404).json({ message: 'Product not found' });
+
         const { rating, comment } = req.body;
         const review = await Review.create({
-            user_id: req.user._id,
-            product_id: req.params.id,
+            user: req.user._id,
+            product: product._id,
+            shop: product.shop,
             rating,
             comment,
             userName: req.user.name
         });
-        const reviews = await Review.find({ product_id: req.params.id });
+        const reviews = await Review.find({ product: req.params.id });
         const avgRating = reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length;
         await Product.findByIdAndUpdate(req.params.id, { rating: avgRating, totalReviews: reviews.length });
         res.status(201).json(review);
@@ -214,13 +228,45 @@ const addProductReview = async (req, res) => {
 
 const getProductReviews = async (req, res) => {
     try {
-        const reviews = await Review.find({ product_id: req.params.id })
-            .populate('user_id', 'name')
+        const reviews = await Review.find({ product: req.params.id })
+            .populate('user', 'name')
             .sort({ createdAt: -1 });
+        console.log("ProductId for reviews:", req.params.id);
+        console.log("Reviews found:", reviews.length);
         res.json(reviews);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
 };
 
-module.exports = { createProduct, getAllProducts, getProductById, getMyProducts, updateProduct, deleteProduct, addProductReview, getProductReviews };
+const getProductsByShop = async (req, res) => {
+    try {
+        const { shopId } = req.params;
+        console.log("ShopId:", shopId);
+
+        const products = await Product.find({ shop: shopId });
+        console.log("Products found:", products.length);
+
+        // Return sanitized products
+        res.json(products.map(sanitizeProductSpecs));
+    } catch (err) {
+        console.error("Error in getProductsByShop:", err);
+        res.status(500).json({ message: err.message });
+    }
+};
+
+const getProductsByCategory = async (req, res) => {
+    try {
+        const { category } = req.params;
+        // Use case-insensitive regex to match category despite URL encoding differences
+        const products = await Product.find({ category: { $regex: new RegExp(`^${category.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } })
+            .populate('shop', 'name city address phone location rating');
+        console.log("category:", category);
+        console.log("products found (category view):", products.length);
+        res.json(products.map(sanitizeProductSpecs));
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+module.exports = { createProduct, getAllProducts, getProductById, getMyProducts, updateProduct, deleteProduct, addProductReview, getProductReviews, getProductsByShop, getProductsByCategory };

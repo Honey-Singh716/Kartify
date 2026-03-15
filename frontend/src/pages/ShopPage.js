@@ -15,26 +15,40 @@ export default function ShopPage() {
     const [products, setProducts] = useState([]);
     const [reviews, setReviews] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [selectedCategory, setSelectedCategory] = useState('All');
     const [showReviewForm, setShowReviewForm] = useState(false);
     const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
     const [submittingReview, setSubmittingReview] = useState(false);
 
     const fetchShop = async () => {
         try {
-            const [sRes, pRes, rRes] = await Promise.all([
-                fetch(`${API}/shops/${id}`),
-                fetch(`${API}/products?shop_id=${id}`),
-                fetch(`${API}/shops/${id}/reviews`)
-            ]);
-            const [sData, pData, rData] = await Promise.all([sRes.json(), pRes.json(), rRes.json()]);
-            setShop(sData);
-            setProducts(Array.isArray(pData) ? pData : []);
-            setReviews(Array.isArray(rData) ? rData : []);
+            const res = await fetch(`${API}/shops/${id}`);
+            const data = await res.json();
+            setShop(data);
         } catch (err) { console.error(err); }
-        finally { setLoading(false); }
     };
 
-    useEffect(() => { fetchShop(); }, [id]);
+    const fetchProducts = async () => {
+        try {
+            const res = await fetch(`${API}/products/shop/${id}`);
+            const data = await res.json();
+            setProducts(Array.isArray(data) ? data : []);
+        } catch (err) { console.error(err); }
+    };
+
+    const fetchReviews = async () => {
+        try {
+            const res = await fetch(`${API}/shops/${id}/reviews`);
+            const data = await res.json();
+            setReviews(Array.isArray(data) ? data : []);
+        } catch (err) { console.error(err); }
+    };
+
+    useEffect(() => {
+        setLoading(true);
+        Promise.all([fetchShop(), fetchProducts(), fetchReviews()])
+            .finally(() => setLoading(false));
+    }, [id]);
 
     const submitReview = async (e) => {
         e.preventDefault();
@@ -59,6 +73,10 @@ export default function ShopPage() {
     if (!shop) return <div className="page"><div className="container" style={{ paddingTop: 40 }}><p>Shop not found</p></div></div>;
 
     const bannerUrl = shop.banner || `https://ui-avatars.com/api/?name=${encodeURIComponent(shop.name)}&background=5429c4&color=fff&size=1200&length=2`;
+
+    // Extract unique categories from shop's products
+    const categories = ['All', ...new Set(products.map(p => p.category))];
+    const filteredProducts = selectedCategory === 'All' ? products : products.filter(p => p.category === selectedCategory);
 
     return (
         <div className="page" style={{ paddingBottom: 60 }}>
@@ -128,16 +146,43 @@ export default function ShopPage() {
 
                 {/* Products */}
                 <section style={{ marginBottom: 52 }}>
-                    <div className="section-header">
+                    <div className="section-header" style={{ marginBottom: 24 }}>
                         <div>
                             <h2 className="section-title">Products</h2>
-                            <p className="section-subtitle">{products.length} products available</p>
+                            <p className="section-subtitle">{filteredProducts.length} products available</p>
                         </div>
+                        {categories.length > 2 && (
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                {categories.map(cat => (
+                                    <button
+                                        key={cat}
+                                        onClick={() => setSelectedCategory(cat)}
+                                        style={{
+                                            padding: '6px 16px', borderRadius: 20, fontSize: 13, fontWeight: 600, border: '1px solid var(--border)',
+                                            background: selectedCategory === cat ? 'var(--primary)' : 'var(--bg-card2)',
+                                            color: selectedCategory === cat ? 'white' : 'var(--text-muted)',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        {cat}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
-                    {products.length === 0 ? (
-                        <div className="empty-state"><div className="icon">📦</div><h3>No products yet</h3><p>This shop hasn't added any products yet.</p></div>
+
+                    {filteredProducts.length === 0 ? (
+                        <div className="empty-state">
+                            <div className="icon">📦</div>
+                            <h3>{selectedCategory === 'All' ? 'No products yet' : `No products in ${selectedCategory}`}</h3>
+                            <p>This shop hasn't added any products in this section yet.</p>
+                        </div>
                     ) : (
-                        <div className="grid-4">{products.map(p => <ProductCard key={p._id} product={p} />)}</div>
+                        <div className="grid-4">
+                            {filteredProducts.map((product) => (
+                                <ProductCard key={product._id} product={product} />
+                            ))}
+                        </div>
                     )}
                 </section>
 

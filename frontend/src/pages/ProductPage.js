@@ -44,7 +44,7 @@ export default function ProductPage() {
         try {
             const [pRes, rRes] = await Promise.all([
                 fetch(`${API}/products/${id}`),
-                fetch(`${API}/products/${id}/reviews`)
+                fetch(`${API}/reviews/${id}`)
             ]);
             const [pData, rData] = await Promise.all([pRes.json(), rRes.json()]);
             // Normalize so specifications is always an object, never a string
@@ -62,8 +62,8 @@ export default function ProductPage() {
     const handleAddToCart = (redirect = false) => {
         if (!user) { openAuth('login'); showToast('You must sign in to continue.', 'warning'); return; }
         if (user.role === 'seller') { showToast('Sellers cannot purchase products using seller accounts.', 'error'); return; }
-        const shopId = typeof product.shop_id === 'object' ? product.shop_id._id : product.shop_id;
-        const shopName = typeof product.shop_id === 'object' ? product.shop_id.name : '';
+        const shopId = typeof product.shop === 'object' ? product.shop._id : product.shop;
+        const shopName = typeof product.shop === 'object' ? product.shop.name : '';
         if (cart.shopId && cart.shopId !== shopId) {
             showToast('Your cart contains items from another shop. Clear cart to add this item.', 'warning');
             return;
@@ -82,7 +82,7 @@ export default function ProductPage() {
         if (user.role === 'seller') { showToast('Sellers cannot write reviews using seller accounts.', 'error'); return; }
         setSubmittingReview(true);
         try {
-            const res = await fetch(`${API}/products/${id}/reviews`, {
+            const res = await fetch(`${API}/reviews/${id}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.token}` },
                 body: JSON.stringify(reviewForm)
@@ -101,7 +101,7 @@ export default function ProductPage() {
 
     const imgs = product.images && product.images.length > 0 ? product.images
         : [`https://ui-avatars.com/api/?name=${encodeURIComponent(product.name)}&background=6C3DE1&color=fff&size=400`];
-    const shop = product.shop_id;
+    const shop = product.shop;
 
     const getDisplayImg = () => {
         if (selectedVariant && selectedVariant.image) return selectedVariant.image;

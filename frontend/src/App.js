@@ -15,6 +15,8 @@ import ProfilePage from './pages/ProfilePage';
 import Navbar from './components/Navbar';
 import 'leaflet/dist/leaflet.css';
 
+const API = 'http://localhost:5000/api';
+
 // =================== CONTEXT ===================
 export const AppContext = createContext(null);
 
@@ -35,6 +37,58 @@ const AppProvider = ({ children }) => {
         localStorage.setItem('kartify_cart', JSON.stringify(cart));
     }, [cart]);
 
+    // Fetch persistent cart on login
+    useEffect(() => {
+        const fetchCart = async () => {
+            if (user && user.role === 'customer') {
+                try {
+                    const res = await fetch(`${API}/cart`, {
+                        headers: { Authorization: `Bearer ${user.token}` }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data && data.items) {
+                            setCart({
+                                shopId: data.shop?._id || data.shop || null,
+                                shopName: data.shop?.name || '',
+                                items: data.items.map(i => ({
+                                    ...(i.product || {}),
+                                    cartItemId: (i.product && i.variant_id) ? `${i.product._id}-${i.variant_id}` : (i.product?._id || ''),
+                                    variant_id: i.variant_id,
+                                    color: i.color,
+                                    qty: i.quantity,
+                                    image: i.image || i.product?.images?.[0] || ''
+                                })).filter(i => i._id) // Remove any null products
+                            });
+                        }
+                    }
+                } catch (err) { console.error('Cart sync error:', err); }
+            }
+        };
+        fetchCart();
+    }, [user]);
+
+    const syncCartWithServer = async (updatedCart) => {
+        if (!user || user.role !== 'customer') return;
+        try {
+            await fetch(`${API}/cart`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.token}` },
+                body: JSON.stringify({
+                    shop: updatedCart.shopId,
+                    items: updatedCart.items.map(i => ({
+                        product: i._id,
+                        variant_id: i.variant_id,
+                        color: i.color,
+                        quantity: i.qty,
+                        price: i.price,
+                        image: i.image
+                    }))
+                })
+            });
+        } catch (err) { console.error('Failed to sync cart:', err); }
+    };
+
     const login = useCallback((userData) => {
         setUser(userData);
         localStorage.setItem('kartify_user', JSON.stringify(userData));
@@ -42,7 +96,9 @@ const AppProvider = ({ children }) => {
 
     const logout = useCallback(() => {
         setUser(null);
+        setCart({ shopId: null, shopName: '', items: [] });
         localStorage.removeItem('kartify_user');
+        localStorage.removeItem('kartify_cart');
     }, []);
 
     const showToast = useCallback((message, type = 'success') => {
@@ -51,48 +107,69 @@ const AppProvider = ({ children }) => {
     }, []);
 
     const addToCart = useCallback((product, shopId, shopName, variant = null) => {
+        if (!shopId) {
+            // Defensive recovery
+            shopId = typeof product.shop === 'object' ? product.shop._id : product.shop;
+            shopName = product.shop?.name || '';
+        }
+        if (!shopId) return; // Critical failure if still missing
+
         setCart(prev => {
             if (prev.shopId && prev.shopId !== shopId) {
                 return prev; // signal error outside
             }
             const itemId = variant ? `${product._id}-${variant._id}` : product._id;
             const existing = prev.items.find(i => i.cartItemId === itemId);
+            let nextItems;
             if (existing) {
-                return {
-                    ...prev,
-                    items: prev.items.map(i => i.cartItemId === itemId ? { ...i, qty: i.qty + 1 } : i)
+                nextItems = prev.items.map(i => i.cartItemId === itemId ? { ...i, qty: i.qty + 1 } : i);
+            } else {
+                const newItem = {
+                    ...product,
+                    cartItemId: itemId,
+                    variant_id: variant?._id,
+                    color: variant?.color,
+                    qty: 1
                 };
+                if (variant && variant.image) newItem.image = variant.image;
+                nextItems = [...prev.items, newItem];
             }
-            const newItem = {
-                ...product,
-                cartItemId: itemId,
-                variant_id: variant?._id,
-                color: variant?.color,
-                qty: 1
-            };
-            if (variant && variant.image) newItem.image = variant.image;
-
-            return { shopId, shopName, items: [...prev.items, newItem] };
+            const nextCart = { shopId, shopName, items: nextItems };
+            syncCartWithServer(nextCart);
+            return nextCart;
         });
-    }, []);
+    }, [user]);
 
     const removeFromCart = useCallback((cartItemId) => {
         setCart(prev => {
             const items = prev.items.filter(i => i.cartItemId !== cartItemId);
-            return items.length === 0 ? { shopId: null, shopName: '', items: [] } : { ...prev, items };
+            const nextCart = items.length === 0 ? { shopId: null, shopName: '', items: [] } : { ...prev, items };
+            syncCartWithServer(nextCart);
+            return nextCart;
         });
-    }, []);
+    }, [user]);
 
     const updateQty = useCallback((cartItemId, qty) => {
-        setCart(prev => ({
-            ...prev,
-            items: prev.items.map(i => i.cartItemId === cartItemId ? { ...i, qty } : i)
-        }));
-    }, []);
+        setCart(prev => {
+            const nextCart = {
+                ...prev,
+                items: prev.items.map(i => i.cartItemId === cartItemId ? { ...i, qty } : i)
+            };
+            syncCartWithServer(nextCart);
+            return nextCart;
+        });
+    }, [user]);
 
     const clearCart = useCallback(() => {
-        setCart({ shopId: null, shopName: '', items: [] });
-    }, []);
+        const nextCart = { shopId: null, shopName: '', items: [] };
+        setCart(nextCart);
+        if (user && user.role === 'customer') {
+            fetch(`${API}/cart`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${user.token}` }
+            }).catch(e => console.error('Failed to clear server cart:', e));
+        }
+    }, [user]);
 
     const openAuth = useCallback((mode = 'login') => {
         setAuthMode(mode);
@@ -112,7 +189,6 @@ const AppProvider = ({ children }) => {
 };
 
 // =================== AUTH MODAL ===================
-const API = 'http://localhost:5000/api';
 
 const AuthModal = () => {
     const { showAuth, setShowAuth, authMode, setAuthMode, login, showToast, openAuth } = useApp();

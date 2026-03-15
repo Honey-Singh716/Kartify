@@ -18,11 +18,19 @@ export default function CheckoutPage() {
         e.preventDefault();
         if (!user) { openAuth('login'); showToast('You must sign in to continue.', 'warning'); return; }
         if (user.role === 'seller') { showToast('Sellers cannot purchase products using seller accounts.', 'error'); return; }
-        if (!cart.shopId) { showToast('Cart is empty', 'error'); return; }
+        if (cart.items.length === 0) { showToast('Cart is empty', 'error'); return; }
+
+        // Resolve shopId: prefer cart.shopId, fall back to product.shop on first item
+        let resolvedShopId = cart.shopId;
+        if (!resolvedShopId && cart.items.length > 0) {
+            const firstItem = cart.items[0];
+            resolvedShopId = typeof firstItem.shop === 'object' ? firstItem.shop?._id : firstItem.shop;
+        }
+
         setLoading(true);
         try {
             const orderData = {
-                shop_id: cart.shopId,
+                shop_id: resolvedShopId || undefined,  // let backend resolve if still null
                 items: cart.items.map(i => ({
                     product_id: i._id,
                     variant_id: i.variant_id,
@@ -33,7 +41,7 @@ export default function CheckoutPage() {
                     image: i.image || i.images?.[0] || ''
                 })),
                 deliveryType,
-                total_price: total,
+                totalAmount: total,
                 ...(deliveryType === 'delivery' ? {
                     delivery_name: form.name,
                     delivery_phone: form.phone,
@@ -83,7 +91,7 @@ export default function CheckoutPage() {
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                                 <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>Total</span>
-                                <span style={{ fontWeight: 700, color: 'var(--primary-light)' }}>₹{orderPlaced.total_price.toLocaleString('en-IN')}</span>
+                                <span style={{ fontWeight: 700, color: 'var(--primary-light)' }}>₹{orderPlaced.totalAmount.toLocaleString('en-IN')}</span>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                 <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>Delivery</span>

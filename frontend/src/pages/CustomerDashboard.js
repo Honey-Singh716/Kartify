@@ -47,7 +47,7 @@ export default function CustomerDashboard() {
         total: orders.length,
         pending: orders.filter(o => !['delivered', 'picked_up'].includes(o.status)).length,
         completed: orders.filter(o => ['delivered', 'picked_up'].includes(o.status)).length,
-        spending: orders.reduce((sum, o) => sum + o.total_price, 0)
+        spending: orders.reduce((sum, o) => sum + o.totalAmount, 0)
     };
 
     return (
@@ -89,18 +89,18 @@ export default function CustomerDashboard() {
                                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                                             <div>
                                                 <p style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 4 }}>Order #{order._id.slice(-8).toUpperCase()}</p>
-                                                <p style={{ fontWeight: 600 }}>{order.shop_id?.name || 'Local Shop'}</p>
+                                                <p style={{ fontWeight: 600 }}>{order.shop?.name || 'Local Shop'}</p>
                                             </div>
                                             <div style={{ textAlign: 'right' }}>
-                                                <p style={{ fontWeight: 800, color: 'var(--primary-light)' }}>₹{order.total_price.toLocaleString('en-IN')}</p>
+                                                <p style={{ fontWeight: 800, color: 'var(--primary-light)' }}>₹{order.totalAmount.toLocaleString('en-IN')}</p>
                                                 <p style={{ fontSize: 12, color: 'var(--text-dim)' }}>{new Date(order.createdAt).toLocaleDateString()}</p>
                                             </div>
                                         </div>
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                            <span className={`badge badge-${(order.status === 'delivered' || order.status === 'picked_up') ? 'success' : 'warning'}`} style={{ textTransform: 'capitalize' }}>
-                                                {order.status.replace(/_/g, ' ')}
+                                            <span className={`badge badge-${(order.orderStatus === 'delivered' || order.orderStatus === 'picked_up') ? 'success' : 'warning'}`} style={{ textTransform: 'capitalize' }}>
+                                                {order.orderStatus.replace(/_/g, ' ')}
                                             </span>
-                                            {order.deliveryType === 'pickup' && order.status !== 'picked_up' && (
+                                            {order.deliveryType === 'pickup' && order.orderStatus !== 'picked_up' && (
                                                 <div style={{ marginTop: 12 }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                                                         <div style={{ background: 'rgba(16,185,129,0.05)', border: '1px solid var(--success)', borderRadius: 12, padding: '12px 16px' }}>
@@ -115,11 +115,11 @@ export default function CustomerDashboard() {
                                                             {showMapFor === order._id ? 'Hide Map' : '📍 View Shop Location'}
                                                         </button>
                                                     </div>
-                                                    {showMapFor === order._id && order.shop_id?.location && (
+                                                    {showMapFor === order._id && order.shop?.location && (
                                                         <div style={{ animation: 'slideDown 0.3s ease' }}>
-                                                            <ShopMap location={order.shop_id.location} shopName={order.shop_id.name} height="250px" />
+                                                            <ShopMap location={order.shop.location} shopName={order.shop.name} height="250px" />
                                                             <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 8, textAlign: 'center' }}>
-                                                                Address: {order.shop_id.address || 'Check shop page for details'}
+                                                                Address: {order.shop.address || 'Check shop page for details'}
                                                             </p>
                                                         </div>
                                                     )}

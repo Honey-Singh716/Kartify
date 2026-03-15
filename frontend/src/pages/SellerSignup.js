@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../App';
 
@@ -25,6 +25,25 @@ export default function SellerSignup() {
         deliveryAvailable: true, pickupAvailable: true,
         location: { lat: 20.5937, lng: 78.9629 }
     });
+
+    useEffect(() => {
+        const checkExistingShop = async () => {
+            if (user && user.role === 'seller') {
+                try {
+                    const res = await fetch(`${API}/shops/my-shop`, {
+                        headers: { Authorization: `Bearer ${user.token}` }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data._id) {
+                            navigate('/seller/dashboard');
+                        }
+                    }
+                } catch (err) { console.error('Shop check error:', err); }
+            }
+        };
+        checkExistingShop();
+    }, [user, navigate]);
 
     // If already have a seller account and shop, redirect
     const handleAuthSubmit = async (e) => {

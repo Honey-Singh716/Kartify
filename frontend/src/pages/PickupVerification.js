@@ -100,7 +100,7 @@ export default function PickupVerification() {
 
                                 <div style={{ marginBottom: 16 }}>
                                     <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 4 }}>Customer</p>
-                                    <p style={{ fontSize: 18, fontWeight: 700 }}>{orderPreview.buyerName}</p>
+                                    <p style={{ fontSize: 18, fontWeight: 700 }}>{orderPreview.customerName}</p>
                                 </div>
 
                                 <div style={{ marginBottom: 20 }}>
@@ -117,7 +117,7 @@ export default function PickupVerification() {
 
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: 16 }}>
                                     <p style={{ fontWeight: 700 }}>Total Amount</p>
-                                    <p style={{ fontSize: 24, fontWeight: 900, color: 'var(--primary-light)' }}>₹{orderPreview.total_price}</p>
+                                    <p style={{ fontSize: 24, fontWeight: 900, color: 'var(--primary-light)' }}>₹{orderPreview.totalAmount}</p>
                                 </div>
                             </div>
 

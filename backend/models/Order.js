@@ -12,16 +12,17 @@ const orderItemSchema = new mongoose.Schema({
 });
 
 const orderSchema = new mongoose.Schema({
-    buyer_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    shop_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop', required: true },
+    customer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    shop: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop', required: true },
     items: [orderItemSchema],
     deliveryType: { type: String, enum: ['delivery', 'pickup'], required: true },
-    status: {
+    orderStatus: {
         type: String,
         enum: ['pending', 'confirmed', 'packed', 'ready_for_pickup', 'picked_up', 'delivered'],
         default: 'pending'
     },
-    total_price: { type: Number, required: true },
+    totalAmount: { type: Number, required: true },
+    paymentMethod: { type: String, default: 'Cash' },
     // Home delivery fields
     delivery_name: String,
     delivery_phone: String,
@@ -33,6 +34,9 @@ const orderSchema = new mongoose.Schema({
     pickupVerified: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now }
 });
+
+orderSchema.index({ customer: 1 });
+orderSchema.index({ shop: 1 });
 
 orderSchema.pre('save', function (next) {
     if (this.deliveryType === 'pickup' && !this.pickupCode) {

@@ -22,9 +22,9 @@ export default function ProductCard({ product, userLocation }) {
         e.stopPropagation();
         if (!user) { openAuth('login'); showToast('You must sign in to continue.', 'warning'); return; }
         if (user.role === 'seller') { showToast('Sellers cannot purchase products using seller accounts.', 'error'); return; }
-        if (!product.shop_id) return;
-        const shopId = typeof product.shop_id === 'object' ? product.shop_id._id : product.shop_id;
-        const shopName = typeof product.shop_id === 'object' ? product.shop_id.name : '';
+        if (!product.shop) return;
+        const shopId = typeof product.shop === 'object' ? product.shop._id : product.shop;
+        const shopName = typeof product.shop === 'object' ? product.shop.name : '';
         if (cart.shopId && cart.shopId !== shopId) {
             showToast('Your cart contains items from another shop. Clear cart to add this item.', 'warning');
             return;
@@ -60,12 +60,12 @@ export default function ProductCard({ product, userLocation }) {
                 <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 6, lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                     {product.name}
                 </h3>
-                {typeof product.shop_id === 'object' && product.shop_id?.name && (
+                {typeof product.shop === 'object' && product.shop?.name && (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                        <p style={{ fontSize: 12, color: 'var(--text-dim)' }}>🏪 {product.shop_id.name}</p>
-                        {userLocation && product.shop_id.location?.lat && (
+                        <p style={{ fontSize: 12, color: 'var(--text-dim)' }}>🏪 {product.shop.name}</p>
+                        {userLocation && product.shop.location?.lat && (
                             <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--primary-light)' }}>
-                                📍 {calculateDistance(userLocation.lat, userLocation.lng, product.shop_id.location.lat, product.shop_id.location.lng).toFixed(1)} km
+                                📍 {calculateDistance(userLocation.lat, userLocation.lng, product.shop.location.lat, product.shop.location.lng).toFixed(1)} km
                             </span>
                         )}
                     </div>

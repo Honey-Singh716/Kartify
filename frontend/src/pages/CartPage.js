@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../App';
 
 export default function CartPage() {
-    const { user, cart, removeFromCart, updateQty, clearCart, openAuth } = useApp();
+    const { user, cart, removeFromCart, updateQty, clearCart, openAuth, showToast } = useApp();
     const navigate = useNavigate();
 
     const total = cart.items.reduce((sum, i) => sum + i.price * i.qty, 0);
@@ -26,7 +26,25 @@ export default function CartPage() {
     const handleCheckout = () => {
         if (!user) { openAuth('login'); showToast('You must sign in to continue.', 'warning'); return; }
         if (user.role === 'seller') { showToast('Sellers cannot purchase products using seller accounts.', 'error'); return; }
-        if (!cart.shopId) { showToast('Cart is empty', 'error'); return; }
+
+        // Auto-recovery attempt: if shopId is missing but items exist, try to recover it from first item
+        if (!cart.shopId && cart.items.length > 0) {
+            const firstItem = cart.items[0];
+            const recoveredShopId = typeof firstItem.shop === 'object' ? firstItem.shop._id : firstItem.shop;
+            if (recoveredShopId) {
+                console.log("[Cart Recovery] Recovered missing shopId:", recoveredShopId);
+                // We don't update state here to avoid side effects during navigation,
+                // but we check if we CAN recover it. If so, we proceed.
+                cart.shopId = recoveredShopId;
+            }
+        }
+
+        if (!cart.items.length) { showToast('Cart is empty', 'error'); return; }
+        if (!cart.shopId) {
+            showToast('Invalid cart data. Please clear cart and try again.', 'error');
+            console.error("[Cart Error] Items present but shopId missing.");
+            return;
+        }
         navigate('/checkout');
     };
 
@@ -51,7 +69,7 @@ export default function CartPage() {
                                 || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=6C3DE1&color=fff&size=100`;
                             if (img && img.startsWith('/uploads/')) img = `http://localhost:5000${img}`;
                             return (
-                                <div key={item._id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: 20, display: 'flex', gap: 16, alignItems: 'center' }}>
+                                <div key={item.cartItemId || item._id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: 20, display: 'flex', gap: 16, alignItems: 'center' }}>
                                     <img src={img} alt={item.name} style={{ width: 80, height: 80, borderRadius: 12, objectFit: 'cover', flexShrink: 0 }} onError={e => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=6C3DE1&color=fff&size=100`; }} />
                                     <div style={{ flex: 1 }}>
                                         <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>{item.name}</h3>

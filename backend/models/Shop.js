@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const shopSchema = new mongoose.Schema({
-    seller_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     name: { type: String, required: true, trim: true },
     description: { type: String },
     category: { type: String, required: true },
@@ -22,5 +22,8 @@ const shopSchema = new mongoose.Schema({
     totalReviews: { type: Number, default: 0 },
     createdAt: { type: Date, default: Date.now }
 });
+
+shopSchema.index({ 'location.lat': 1, 'location.lng': 1 }, { sparse: true });
+shopSchema.index({ owner: 1 });
 
 module.exports = mongoose.model('Shop', shopSchema);

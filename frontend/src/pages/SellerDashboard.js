@@ -196,8 +196,8 @@ export default function SellerDashboard() {
     if (!shop) return null;
 
     // Analytics
-    const totalRevenue = orders.filter(o => o.status === 'delivered' || o.status === 'picked_up').reduce((sum, o) => sum + o.total_price, 0);
-    const pendingOrders = orders.filter(o => o.status === 'pending').length;
+    const totalRevenue = orders.filter(o => o.orderStatus === 'delivered' || o.orderStatus === 'picked_up').reduce((sum, o) => sum + o.totalAmount, 0);
+    const pendingOrders = orders.filter(o => o.orderStatus === 'pending').length;
     const totalOrders = orders.length;
 
     const navItems = [
@@ -303,10 +303,10 @@ export default function SellerDashboard() {
                                         {orders.slice(0, 5).map(o => (
                                             <tr key={o._id} style={{ borderBottom: '1px solid var(--border)' }}>
                                                 <td style={{ padding: '14px 20px', fontSize: 13, fontFamily: 'monospace', color: 'var(--text-dim)' }}>{o._id.slice(-8).toUpperCase()}</td>
-                                                <td style={{ padding: '14px 20px', fontSize: 14, fontWeight: 600 }}>{o.buyer_id?.name || 'N/A'}</td>
+                                                <td style={{ padding: '14px 20px', fontSize: 14, fontWeight: 600 }}>{o.customer?.name || 'N/A'}</td>
                                                 <td style={{ padding: '14px 20px', fontSize: 13 }}>{o.deliveryType === 'delivery' ? '🚚 Delivery' : '📦 Pickup'}</td>
-                                                <td style={{ padding: '14px 20px', fontSize: 14, fontWeight: 700, color: 'var(--primary-light)' }}>₹{o.total_price.toLocaleString('en-IN')}</td>
-                                                <td style={{ padding: '14px 20px' }}>{statusBadge(o.status)}</td>
+                                                <td style={{ padding: '14px 20px', fontSize: 14, fontWeight: 700, color: 'var(--primary-light)' }}>₹{o.totalAmount.toLocaleString('en-IN')}</td>
+                                                <td style={{ padding: '14px 20px' }}>{statusBadge(o.orderStatus)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -544,14 +544,14 @@ export default function SellerDashboard() {
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
                                                 <div>
                                                     <p style={{ fontSize: 12, color: 'var(--text-dim)', fontFamily: 'monospace', marginBottom: 4 }}>#{o._id.slice(-8).toUpperCase()}</p>
-                                                    <p style={{ fontWeight: 700, marginBottom: 4 }}>{o.buyer_id?.name || 'N/A'} · {o.buyer_id?.email}</p>
+                                                    <p style={{ fontWeight: 700, marginBottom: 4 }}>{o.customer?.name || 'N/A'} · {o.customer?.email}</p>
                                                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                                         <span style={{ fontSize: 12 }}>{o.deliveryType === 'delivery' ? '🚚 Home Delivery' : '📦 Shop Pickup'}</span>
                                                         {o.pickupCode && <span className="badge badge-success" style={{ fontSize: 11 }}>Code: {o.pickupCode}</span>}
                                                     </div>
                                                 </div>
                                                 <div style={{ textAlign: 'right' }}>
-                                                    <p style={{ fontSize: 20, fontWeight: 800, color: 'var(--primary-light)' }}>₹{o.total_price.toLocaleString('en-IN')}</p>
+                                                    <p style={{ fontSize: 20, fontWeight: 800, color: 'var(--primary-light)' }}>₹{o.totalAmount.toLocaleString('en-IN')}</p>
                                                     <p style={{ fontSize: 12, color: 'var(--text-dim)' }}>{new Date(o.createdAt).toLocaleDateString('en-IN')}</p>
                                                 </div>
                                             </div>
@@ -569,10 +569,10 @@ export default function SellerDashboard() {
                                             {/* Status update */}
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                                                 <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Status:</span>
-                                                {statusBadge(o.status)}
+                                                {statusBadge(o.orderStatus)}
                                                 <div style={{ marginLeft: 'auto' }}>
                                                     <select
-                                                        value={o.status}
+                                                        value={o.orderStatus}
                                                         onChange={e => handleUpdateStatus(o._id, e.target.value)}
                                                         style={{ background: 'var(--bg-card2)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 8, padding: '8px 14px', fontSize: 13, cursor: 'pointer', width: 'auto', textTransform: 'capitalize' }}>
                                                         {statuses.map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
