@@ -135,7 +135,7 @@ export default function HomePage() {
                             <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 18, maxWidth: 440, marginBottom: 32, lineHeight: 1.6 }}>
                                 Browse hundreds of products from local shops. Order for delivery or pick up in store with ease.
                             </p>
-                            <button onClick={() => navigate('/category/Electronics')} className="btn-primary" style={{ fontSize: 16, padding: '16px 36px', borderRadius: 12, boxShadow: '0 8px 30px rgba(108,61,225,0.3)' }}>
+                            <button onClick={() => document.getElementById('products-section')?.scrollIntoView({ behavior: 'smooth' })} className="btn-primary" style={{ fontSize: 16, padding: '16px 36px', borderRadius: 12, boxShadow: '0 8px 30px rgba(108,61,225,0.3)' }}>
                                 🛍️ Start Shopping
                             </button>
                         </div>
@@ -242,7 +242,7 @@ export default function HomePage() {
 
                 {/* Products Section */}
                 {(!searchQuery || !isShopIntent) && (
-                    <section style={{ marginBottom: 52 }}>
+                    <section id="products-section" style={{ marginBottom: 52 }}>
                         <div className="section-header">
                             <div>
                                 <h2 className="section-title">{searchQuery ? 'Products' : 'Featured Products'}</h2>

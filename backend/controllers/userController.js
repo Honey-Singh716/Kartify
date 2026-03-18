@@ -20,6 +20,10 @@ const updateProfile = async (req, res) => {
         user.city = req.body.city || user.city;
         user.state = req.body.state || user.state;
         user.pincode = req.body.pincode || user.pincode;
+        // Save map-picked location if provided
+        if (req.body.location?.lat && req.body.location?.lng) {
+            user.location = { lat: req.body.location.lat, lng: req.body.location.lng };
+        }
 
         const updatedUser = await user.save();
         res.json({
@@ -31,7 +35,8 @@ const updateProfile = async (req, res) => {
             address: updatedUser.address,
             city: updatedUser.city,
             state: updatedUser.state,
-            pincode: updatedUser.pincode
+            pincode: updatedUser.pincode,
+            location: updatedUser.location
         });
     } catch (err) {
         res.status(500).json({ message: err.message });

@@ -11,6 +11,10 @@ const userSchema = new mongoose.Schema({
     city: { type: String, trim: true },
     state: { type: String, trim: true },
     pincode: { type: String, trim: true },
+    location: {
+        lat: { type: Number },
+        lng: { type: Number }
+    },
     createdAt: { type: Date, default: Date.now }
 });
 

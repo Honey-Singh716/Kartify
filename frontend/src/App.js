@@ -32,6 +32,16 @@ const AppProvider = ({ children }) => {
     const [toast, setToast] = useState(null);
     const [showAuth, setShowAuth] = useState(false);
     const [authMode, setAuthMode] = useState('login');
+    const [userProfileLocation, setUserProfileLocation] = useState(null); // { lat, lng } from saved profile
+
+    // Fetch customer's saved home location from profile
+    useEffect(() => {
+        if (!user || user.role !== 'customer') { setUserProfileLocation(null); return; }
+        fetch(`${API}/users/profile`, { headers: { Authorization: `Bearer ${user.token}` } })
+            .then(r => r.json())
+            .then(data => { if (data?.location?.lat) setUserProfileLocation(data.location); })
+            .catch(() => { });
+    }, [user]);
 
     useEffect(() => {
         localStorage.setItem('kartify_cart', JSON.stringify(cart));
@@ -96,6 +106,7 @@ const AppProvider = ({ children }) => {
 
     const logout = useCallback(() => {
         setUser(null);
+        setUserProfileLocation(null);
         setCart({ shopId: null, shopName: '', items: [] });
         localStorage.removeItem('kartify_user');
         localStorage.removeItem('kartify_cart');

@@ -135,7 +135,11 @@ export default function Navbar() {
                             </button>
                             {showUser && (
                                 <div style={{ position: 'absolute', top: '100%', right: 0, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '8px 0', minWidth: 180, zIndex: 100, boxShadow: '0 8px 40px rgba(0,0,0,0.4)' }}>
-                                    <Link to="/customer/profile" style={{ display: 'block', padding: '10px 20px', fontSize: 14, color: 'var(--text-muted)' }}>👤 Profile</Link>
+                                    {user.role === 'seller' ? (
+                                        <Link to="/seller/dashboard" style={{ display: 'block', padding: '10px 20px', fontSize: 14, color: 'var(--text-muted)' }}>📊 Dashboard</Link>
+                                    ) : (
+                                        <Link to="/customer/profile" style={{ display: 'block', padding: '10px 20px', fontSize: 14, color: 'var(--text-muted)' }}>👤 Profile</Link>
+                                    )}
                                     <button onClick={logout} style={{ width: '100%', textAlign: 'left', padding: '10px 20px', fontSize: 14, color: 'var(--danger)', background: 'none' }}>
                                         🚪 Logout
                                     </button>

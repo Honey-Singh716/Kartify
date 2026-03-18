@@ -17,35 +17,47 @@ export const getUserLocation = () => {
     });
 };
 
-export const openDirections = (shopLocation, showToast) => {
+/**
+ * Opens directions from user's location to a shop.
+ * @param {Object} shopLocation     { lat, lng }
+ * @param {Function} showToast
+ * @param {Object|null} savedLocation  Optional pre-saved location { lat, lng } from customer profile.
+ *                                     If provided, skips GPS request and uses it directly.
+ */
+export const openDirections = (shopLocation, showToast, savedLocation = null) => {
     if (!shopLocation || !shopLocation.lat || !shopLocation.lng) {
         showToast('Shop location not available', 'error');
         return;
     }
 
+    const shopLat = shopLocation.lat;
+    const shopLng = shopLocation.lng;
+
+    const openMap = (userLat, userLng) => {
+        const url = `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${userLat},${userLng};${shopLat},${shopLng}`;
+        window.open(url, '_blank');
+    };
+
+    // Priority 1: Use saved profile location (instant — no GPS prompt)
+    if (savedLocation?.lat && savedLocation?.lng) {
+        showToast('Opening directions from your home location 🏠');
+        openMap(savedLocation.lat, savedLocation.lng);
+        return;
+    }
+
+    // Priority 2: Fall back to live GPS
     if (!navigator.geolocation) {
         showToast('Geolocation is not supported by your browser', 'error');
         return;
     }
 
-    // Show a loading toast or just proceed
     showToast('Detecting your location...');
-
     navigator.geolocation.getCurrentPosition(
-        (position) => {
-            const userLat = position.coords.latitude;
-            const userLng = position.coords.longitude;
-            const shopLat = shopLocation.lat;
-            const shopLng = shopLocation.lng;
-
-            const url = `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${userLat},${userLng};${shopLat},${shopLng}`;
-            window.open(url, '_blank');
-        },
+        (position) => openMap(position.coords.latitude, position.coords.longitude),
         (error) => {
-            console.error('Geolocation error:', error);
             let message = 'Failed to detect location';
             if (error.code === error.PERMISSION_DENIED) {
-                message = 'Please enable location access to get directions';
+                message = 'Location denied — save your home location in your Profile for instant directions';
             } else if (error.code === error.POSITION_UNAVAILABLE) {
                 message = 'Location information is unavailable';
             } else if (error.code === error.TIMEOUT) {
@@ -53,11 +65,7 @@ export const openDirections = (shopLocation, showToast) => {
             }
             showToast(message, 'error');
         },
-        {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0
-        }
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
 };
 
