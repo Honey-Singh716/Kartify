@@ -5,7 +5,7 @@ import { useApp } from '../App';
 const API = 'http://localhost:5000/api';
 
 export default function CheckoutPage() {
-    const { user, cart, clearCart, showToast } = useApp();
+    const { user, cart, clearCart, showToast, openAuth } = useApp();
     const navigate = useNavigate();
     const [deliveryType, setDeliveryType] = useState('delivery');
     const [form, setForm] = useState({ name: user?.name || '', phone: user?.phone || '', address: '', city: '', pincode: '' });

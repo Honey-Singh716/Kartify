@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../App';
+import MapPicker from '../components/MapPicker';
 
 const API = 'http://localhost:5000/api';
 
@@ -9,8 +10,6 @@ const CATEGORIES = [
     'Beauty & Personal Care', 'Groceries & Food', 'Sports & Fitness',
     'Books & Stationery', 'Toys & Baby Products', 'Medicine'
 ];
-
-import MapPicker from '../components/MapPicker';
 
 export default function SellerSignup() {
     const { user, login, showToast } = useApp();
