@@ -8,6 +8,14 @@ const path = require('path');
 
 const app = express();
 
+// Check for required environment variables
+if (!process.env.MONGO_URI) {
+  console.error('❌ MONGO_URI is not defined in environment variables');
+  console.error('📝 Please copy .env.example to .env and configure your MongoDB connection');
+  console.error('💡 Example: cp .env.example .env');
+  process.exit(1);
+}
+
 // Ensure uploads folder exists
 if (!fs.existsSync('uploads')) {
   fs.mkdirSync('uploads');
