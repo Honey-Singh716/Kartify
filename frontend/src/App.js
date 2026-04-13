@@ -14,6 +14,7 @@ import CustomerDashboard from './pages/CustomerDashboard';
 import ProfilePage from './pages/ProfilePage';
 import Navbar from './components/Navbar';
 import 'leaflet/dist/leaflet.css';
+import { API_URL } from './config';
 
 // Protected Route Components
 const SellerRoute = ({ children }) => {
@@ -30,7 +31,7 @@ const CustomerRoute = ({ children }) => {
     return children;
 };
 
-const API = 'http://localhost:5000/api';
+const API = API_URL;
 
 // =================== CONTEXT ===================
 export const AppContext = createContext(null);
@@ -48,6 +49,21 @@ const AppProvider = ({ children }) => {
     const [showAuth, setShowAuth] = useState(false);
     const [authMode, setAuthMode] = useState('login');
     const [userProfileLocation, setUserProfileLocation] = useState(null); // { lat, lng } from saved profile
+
+    // Global Error Handling
+    useEffect(() => {
+        const handleUnhandledRejection = (event) => {
+            console.error('Unhandled Promise Rejection:', event.reason);
+            setToast({
+                message: 'Something went wrong. Please check your connection or try again.',
+                type: 'error'
+            });
+            setTimeout(() => setToast(null), 3000);
+        };
+
+        window.addEventListener('unhandledrejection', handleUnhandledRejection);
+        return () => window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    }, []);
 
     // Fetch customer's saved home location from profile
     useEffect(() => {

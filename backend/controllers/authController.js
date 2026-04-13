@@ -2,7 +2,11 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
 const generateToken = (id) => {
-    return jwt.sign({ id }, process.env.JWT_SECRET || 'kartify_secret_key', { expiresIn: '30d' });
+    const secret = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? null : 'kartify_secret_key');
+    if (!secret && process.env.NODE_ENV === 'production') {
+        throw new Error('JWT_SECRET is not defined');
+    }
+    return jwt.sign({ id }, secret, { expiresIn: '7d' });
 };
 
 const registerUser = async (req, res) => {

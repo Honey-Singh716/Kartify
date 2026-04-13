@@ -135,46 +135,50 @@ const updateOrderStatus = async (req, res) => {
         const order = await Order.findOne({ _id: req.params.id, shop: shop._id });
         if (!order) return res.status(404).json({ message: 'Order not found or access denied' });
 
-        const { status } = req.body;
-        if (!status) {
-            return res.status(400).json({ message: 'Status is required' });
+        const { status, estimatedDelivery, statusNote } = req.body;
+        if (!status && !estimatedDelivery && !statusNote) {
+            return res.status(400).json({ message: 'Status, estimatedDelivery, or statusNote is required' });
         }
 
-        // Validate state transitions
-        const currentStatus = order.orderStatus;
-        const deliveryType = order.deliveryType;
-        
-        // Define valid transitions
-        const validTransitions = {
-            'pickup': {
-                'pending': ['confirmed', 'cancelled'],
-                'confirmed': ['ready_for_pickup', 'cancelled'],
-                'ready_for_pickup': ['picked_up', 'cancelled'],
-                'picked_up': ['completed'],
-                'completed': [],
-                'cancelled': []
-            },
-            'delivery': {
-                'pending': ['confirmed', 'cancelled'],
-                'confirmed': ['out_for_delivery', 'cancelled'],
-                'out_for_delivery': ['delivered', 'cancelled'],
-                'delivered': ['completed'],
-                'completed': [],
-                'cancelled': []
+        // Validate state transitions if status is being changed
+        if (status) {
+            const currentStatus = order.orderStatus;
+            const deliveryType = order.deliveryType;
+
+            // Define valid transitions
+            const validTransitions = {
+                'pickup': {
+                    'pending': ['confirmed', 'cancelled'],
+                    'confirmed': ['ready_for_pickup', 'cancelled'],
+                    'ready_for_pickup': ['picked_up', 'cancelled'],
+                    'picked_up': ['completed'],
+                    'completed': [],
+                    'cancelled': []
+                },
+                'delivery': {
+                    'pending': ['confirmed', 'cancelled'],
+                    'confirmed': ['out_for_delivery', 'cancelled'],
+                    'out_for_delivery': ['delivered', 'cancelled'],
+                    'delivered': ['completed'],
+                    'completed': [],
+                    'cancelled': []
+                }
+            };
+
+            const allowedTransitions = validTransitions[deliveryType]?.[currentStatus] || [];
+            if (!allowedTransitions.includes(status)) {
+                return res.status(400).json({
+                    message: `Invalid status transition from ${currentStatus} to ${status} for ${deliveryType} order`
+                });
             }
-        };
-
-        const allowedTransitions = validTransitions[deliveryType]?.[currentStatus] || [];
-        if (!allowedTransitions.includes(status)) {
-            return res.status(400).json({ 
-                message: `Invalid status transition from ${currentStatus} to ${status} for ${deliveryType} order` 
-            });
+            order.orderStatus = status;
         }
 
-        // Update the order status
-        order.orderStatus = status;
-        await order.save();
+        // Update other fields if provided
+        if (estimatedDelivery) order.estimatedDelivery = estimatedDelivery;
+        if (statusNote !== undefined) order.statusNote = statusNote;
 
+        await order.save();
         res.json(order);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -203,4 +207,83 @@ const getOrderById = async (req, res) => {
     }
 };
 
-module.exports = { createOrder, getMyOrders, getShopOrders, updateOrderStatus, getOrderById, verifyPickup };
+const updateDeliveryTime = async (req, res) => {
+    try {
+        const shop = await Shop.findOne({ owner: req.user._id });
+        if (!shop) return res.status(404).json({ message: 'No shop found' });
+
+        const order = await Order.findOne({ _id: req.params.id, shop: shop._id });
+        if (!order) return res.status(404).json({ message: 'Order not found or access denied' });
+
+        const { estimatedDelivery, statusNote } = req.body;
+
+        if (estimatedDelivery) order.estimatedDelivery = estimatedDelivery;
+        if (statusNote !== undefined) order.statusNote = statusNote;
+
+        await order.save();
+        res.json(order);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// Unified PATCH handler — accepts any combination of { status, estimatedDelivery, statusNote }
+const updateOrder = async (req, res) => {
+    try {
+        const shop = await Shop.findOne({ owner: req.user._id });
+        if (!shop) return res.status(404).json({ message: 'No shop found' });
+
+        const order = await Order.findOne({ _id: req.params.id, shop: shop._id });
+        if (!order) return res.status(404).json({ message: 'Order not found or access denied' });
+
+        const { status, estimatedDelivery, statusNote } = req.body;
+
+        if (!status && estimatedDelivery === undefined && statusNote === undefined) {
+            return res.status(400).json({ message: 'At least one of status, estimatedDelivery, or statusNote is required' });
+        }
+
+        // Validate and apply status transition if requested
+        if (status) {
+            const currentStatus = order.orderStatus;
+            const deliveryType = order.deliveryType;
+
+            const validTransitions = {
+                'pickup': {
+                    'pending': ['confirmed', 'cancelled'],
+                    'confirmed': ['ready_for_pickup', 'cancelled'],
+                    'ready_for_pickup': ['picked_up', 'cancelled'],
+                    'picked_up': ['completed'],
+                    'completed': [],
+                    'cancelled': []
+                },
+                'delivery': {
+                    'pending': ['confirmed', 'cancelled'],
+                    'confirmed': ['out_for_delivery', 'cancelled'],
+                    'out_for_delivery': ['delivered', 'cancelled'],
+                    'delivered': ['completed'],
+                    'completed': [],
+                    'cancelled': []
+                }
+            };
+
+            const allowedTransitions = validTransitions[deliveryType]?.[currentStatus] || [];
+            if (!allowedTransitions.includes(status)) {
+                return res.status(400).json({
+                    message: `Invalid status transition from '${currentStatus}' to '${status}' for a ${deliveryType} order`
+                });
+            }
+            order.orderStatus = status;
+        }
+
+        // Apply ETA and note updates
+        if (estimatedDelivery !== undefined) order.estimatedDelivery = estimatedDelivery || null;
+        if (statusNote !== undefined) order.statusNote = statusNote;
+
+        await order.save();
+        res.json(order);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+module.exports = { createOrder, getMyOrders, getShopOrders, updateOrderStatus, getOrderById, verifyPickup, updateDeliveryTime, updateOrder };

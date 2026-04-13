@@ -3,7 +3,9 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../App';
 import MapPicker from '../components/MapPicker';
 
-const API = 'http://localhost:5000/api';
+import { API_URL } from '../config';
+
+const API = API_URL;
 
 const CATEGORIES = [
     'Electronics', 'Fashion & Clothing', 'Home & Kitchen',

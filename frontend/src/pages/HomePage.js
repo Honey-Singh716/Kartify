@@ -6,7 +6,9 @@ import ShopMap from '../components/ShopMap';
 import { useApp } from '../App';
 import { getUserLocation, calculateDistance } from '../utils/geo';
 
-const API = 'http://localhost:5000/api';
+import { API_URL } from '../config';
+
+const API = API_URL;
 
 const CATEGORIES = [
     { name: 'Electronics', icon: '📱' },

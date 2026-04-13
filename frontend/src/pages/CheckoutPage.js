@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../App';
 
-const API = 'http://localhost:5000/api';
+import { API_URL, IMAGE_URL } from '../config';
+
+const API = API_URL;
 
 export default function CheckoutPage() {
     const { user, cart, clearCart, showToast, openAuth } = useApp();
@@ -196,7 +198,7 @@ export default function CheckoutPage() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
                             {cart.items.map(item => {
                                 let img = item.image || item.images?.[0] || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=6C3DE1&color=fff&size=44`;
-                                if (img && img.startsWith('/uploads/')) img = `http://localhost:5000${img}`;
+                                if (img && img.startsWith('/uploads/')) img = `${IMAGE_URL}${img}`;
                                 return (
                                     <div key={item.cartItemId} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                         <div style={{ background: 'var(--bg-card2)', borderRadius: 8, width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>

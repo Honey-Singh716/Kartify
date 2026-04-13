@@ -32,13 +32,19 @@ const orderSchema = new mongoose.Schema({
     // Pickup fields
     pickupCode: { type: String },
     pickupVerified: { type: Boolean, default: false },
-    createdAt: { type: Date, default: Date.now }
+    estimatedDelivery: { type: Date },           // Seller-set ETA (visible to customer)
+    statusNote: { type: String },                 // Short seller note e.g. "Delayed due to traffic"
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
 });
 
 orderSchema.index({ customer: 1 });
 orderSchema.index({ shop: 1 });
+orderSchema.index({ orderStatus: 1 });
+orderSchema.index({ createdAt: -1 });
 
 orderSchema.pre('save', function (next) {
+    this.updatedAt = new Date();
     if (this.deliveryType === 'pickup' && !this.pickupCode) {
         this.pickupCode = Math.floor(100000 + Math.random() * 900000).toString();
     }

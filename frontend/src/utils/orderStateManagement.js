@@ -13,11 +13,11 @@ export const ORDER_STATES = {
     CONFIRMED: 'confirmed',
     COMPLETED: 'completed',
     CANCELLED: 'cancelled',
-    
+
     // Pickup specific states
     READY_FOR_PICKUP: 'ready_for_pickup',
     PICKED_UP: 'picked_up',
-    
+
     // Delivery specific states
     OUT_FOR_DELIVERY: 'out_for_delivery',
     DELIVERED: 'delivered'
@@ -45,6 +45,16 @@ export const STATE_TRANSITIONS = {
 
 // State Metadata - Display information for each state
 export const STATE_METADATA = {
+    'pending': {
+        label: 'Order Pending',
+        description: 'Your order is waiting for seller confirmation',
+        color: '#F59E0B',
+        bgColor: 'rgba(245, 158, 11, 0.1)',
+        icon: '⏳',
+        progress: 10,
+        isTerminal: false,
+        canCancel: true
+    },
     [ORDER_STATES.CONFIRMED]: {
         label: 'Order Confirmed',
         description: 'Your order has been confirmed and is being prepared',
@@ -322,7 +332,7 @@ export const OrderStateValidator = {
     // Validate state transition with detailed error messages
     validateTransition: (orderType, currentState, targetState, userRole) => {
         const errors = [];
-        
+
         // Check if transition is valid
         if (!OrderStateValidator.isValidTransition(orderType, currentState, targetState)) {
             errors.push(`Invalid transition from ${currentState} to ${targetState}`);
@@ -331,7 +341,7 @@ export const OrderStateValidator = {
         // Check if user has permission
         const actions = STATE_ACTIONS[orderType]?.[currentState] || [];
         const targetAction = actions.find(action => action.targetState === targetState);
-        
+
         if (targetAction && !OrderStateValidator.canPerformAction(targetAction, userRole)) {
             errors.push(`User role ${userRole} is not authorized to perform this action`);
         }
@@ -353,7 +363,7 @@ export class OrderStateManager {
     async executeTransition(orderId, orderType, currentState, targetState, userRole, additionalData = {}) {
         // Validate the transition
         const validation = OrderStateValidator.validateTransition(orderType, currentState, targetState, userRole);
-        
+
         if (!validation.isValid) {
             throw new Error(`Transition validation failed: ${validation.errors.join(', ')}`);
         }
@@ -366,7 +376,7 @@ export class OrderStateManager {
         try {
             // Make API call to update order status
             const response = await this.apiClient.put(`/orders/${orderId}/status`, payload);
-            
+
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.message || 'Failed to update order status');
@@ -426,7 +436,7 @@ export class OrderStateManager {
     async getOrderHistory(orderId) {
         try {
             const response = await this.apiClient.get(`/orders/${orderId}/history`);
-            
+
             if (!response.ok) {
                 throw new Error('Failed to fetch order history');
             }
@@ -463,7 +473,7 @@ export const OrderUIHelpers = {
     // Format timestamp for display
     formatTimestamp: (timestamp) => {
         if (!timestamp) return 'N/A';
-        
+
         const date = new Date(timestamp);
         const now = new Date();
         const diffMs = now - date;
@@ -475,7 +485,7 @@ export const OrderUIHelpers = {
         if (diffMins < 60) return `${diffMins} minutes ago`;
         if (diffHours < 24) return `${diffHours} hours ago`;
         if (diffDays < 7) return `${diffDays} days ago`;
-        
+
         return date.toLocaleDateString('en-IN', {
             day: 'numeric',
             month: 'short',
@@ -491,7 +501,7 @@ export const OrderUIHelpers = {
     // Get next action for customer display
     getNextActionForCustomer: (orderType, state) => {
         const metadata = STATE_METADATA[state];
-        
+
         switch (orderType) {
             case ORDER_TYPES.PICKUP:
                 if (state === ORDER_STATES.READY_FOR_PICKUP) {
@@ -502,7 +512,7 @@ export const OrderUIHelpers = {
                     return 'Order picked up successfully';
                 }
                 break;
-                
+
             case ORDER_TYPES.DELIVERY:
                 if (state === ORDER_STATES.OUT_FOR_DELIVERY) {
                     return 'Stay available for delivery';
@@ -513,7 +523,7 @@ export const OrderUIHelpers = {
                 }
                 break;
         }
-        
+
         return metadata?.description || 'Processing your order';
     }
 };

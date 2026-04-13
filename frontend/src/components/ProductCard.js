@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../App';
 import { calculateDistance } from '../utils/geo';
+import { IMAGE_URL } from '../config';
 
 const StarRating = ({ rating }) => {
     return (
@@ -36,7 +37,7 @@ export default function ProductCard({ product, userLocation }) {
     let imgUrl = product.images && product.images[0]
         ? product.images[0]
         : `https://ui-avatars.com/api/?name=${encodeURIComponent(product.name)}&background=6C3DE1&color=fff&size=200`;
-    if (imgUrl && imgUrl.startsWith('/uploads/')) imgUrl = `http://localhost:5000${imgUrl}`;
+    if (imgUrl && imgUrl.startsWith('/uploads/')) imgUrl = `${IMAGE_URL}${imgUrl}`;
 
     return (
         <Link to={`/product/${product._id}`} className="card" style={{ display: 'block', textDecoration: 'none' }}>

@@ -3,16 +3,18 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../App';
 import ReviewCard from '../components/ReviewCard';
 import MapPicker from '../components/MapPicker';
-import { 
-    ORDER_TYPES, 
-    ORDER_STATES, 
-    STATE_ACTIONS, 
-    OrderStateValidator, 
-    OrderStateManager,
-    OrderUIHelpers 
+import {
+    ORDER_TYPES,
+    ORDER_STATES,
+    STATE_ACTIONS,
+    OrderStateValidator,
+    OrderUIHelpers
 } from '../utils/orderStateManagement';
 
-const API = 'http://localhost:5000/api';
+
+import { API_URL, IMAGE_URL } from '../config';
+
+const API = API_URL;
 
 const CATEGORIES = [
     'Electronics', 'Fashion & Clothing', 'Home & Kitchen',
@@ -32,7 +34,7 @@ const PICKUP_WORKFLOW = ['confirmed', 'ready_for_pickup', 'picked_up', 'complete
 const statusBadge = (status) => {
     const stateMetadata = OrderUIHelpers.getStateMetadata(status);
     return (
-        <span 
+        <span
             style={{
                 background: stateMetadata.bgColor,
                 color: stateMetadata.color,
@@ -59,7 +61,7 @@ const ProgressTracker = ({ order }) => {
     const isPickup = order.deliveryType === 'pickup';
     const orderType = isPickup ? ORDER_TYPES.PICKUP : ORDER_TYPES.DELIVERY;
     const currentStatus = order.orderStatus;
-    
+
     // Get the workflow based on order type
     const getWorkflow = (type) => {
         if (type === ORDER_TYPES.PICKUP) {
@@ -78,10 +80,10 @@ const ProgressTracker = ({ order }) => {
             ];
         }
     };
-    
+
     const workflow = getWorkflow(orderType);
     const currentIndex = workflow.indexOf(currentStatus);
-    
+
     return (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '16px 0' }}>
             {workflow.map((stage, index) => {
@@ -89,12 +91,12 @@ const ProgressTracker = ({ order }) => {
                 const isCurrent = index === currentIndex;
                 const isFuture = index > currentIndex;
                 const stateMetadata = OrderUIHelpers.getStateMetadata(stage);
-                
+
                 return (
                     <React.Fragment key={stage}>
-                        <div style={{ 
-                            display: 'flex', 
-                            flexDirection: 'column', 
+                        <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
                             alignItems: 'center',
                             flex: 1,
                             position: 'relative'
@@ -108,11 +110,11 @@ const ProgressTracker = ({ order }) => {
                                 justifyContent: 'center',
                                 fontSize: 14,
                                 fontWeight: 700,
-                                background: isCompleted ? stateMetadata.color : 
-                                           isCurrent ? stateMetadata.color : 
-                                           'var(--bg-card2)',
-                                border: isCurrent ? `2px solid ${stateMetadata.color}` : 
-                                         '2px solid var(--border)',
+                                background: isCompleted ? stateMetadata.color :
+                                    isCurrent ? stateMetadata.color :
+                                        'var(--bg-card2)',
+                                border: isCurrent ? `2px solid ${stateMetadata.color}` :
+                                    '2px solid var(--border)',
                                 color: isCompleted || isCurrent ? 'white' : 'var(--text-dim)',
                                 transition: 'all 0.3s ease'
                             }}>
@@ -122,8 +124,8 @@ const ProgressTracker = ({ order }) => {
                                 fontSize: 11,
                                 marginTop: 6,
                                 fontWeight: isCurrent ? 700 : 500,
-                                color: isCurrent ? 'var(--text)' : 
-                                       isCompleted ? stateMetadata.color : 'var(--text-dim)',
+                                color: isCurrent ? 'var(--text)' :
+                                    isCompleted ? stateMetadata.color : 'var(--text-dim)',
                                 textAlign: 'center',
                                 textTransform: 'capitalize'
                             }}>
@@ -188,13 +190,13 @@ const OrderTypeBadge = ({ type }) => {
 const CompactProgress = ({ workflow, currentStatus, type }) => {
     const currentIndex = workflow.indexOf(currentStatus);
     const progress = ((currentIndex + 1) / workflow.length) * 100;
-    
+
     return (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ 
-                width: 60, 
-                height: 4, 
-                background: 'var(--border)', 
+            <div style={{
+                width: 60,
+                height: 4,
+                background: 'var(--border)',
                 borderRadius: 2,
                 overflow: 'hidden'
             }}>
@@ -212,49 +214,96 @@ const CompactProgress = ({ workflow, currentStatus, type }) => {
     );
 };
 
-// Scheduling component
-const OrderScheduling = ({ order, schedule, onUpdateSchedule }) => {
+// Scheduling component - Enhanced to persist to DB
+const OrderScheduling = ({ order, onUpdateDeliveryTime }) => {
     const isPickup = order.deliveryType === 'pickup';
-    const currentStatus = order.orderStatus;
-    
-    const canSchedule = (isPickup && currentStatus === 'confirmed') || 
-                       (!isPickup && currentStatus === 'confirmed');
-    
-    if (!canSchedule) return null;
-    
+    const isTerminal = ['completed', 'cancelled'].includes(order.orderStatus);
+
+    const [eta, setEta] = useState(order.estimatedDelivery ? new Date(order.estimatedDelivery).toISOString().slice(0, 16) : '');
+    const [note, setNote] = useState(order.statusNote || '');
+    const [isSaving, setIsSaving] = useState(false);
+
+    if (isTerminal) return null;
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        try {
+            await onUpdateDeliveryTime(order._id, eta, note);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     return (
-        <div style={{ 
-            background: 'var(--bg-card2)', 
-            borderRadius: 8, 
-            padding: 12, 
-            marginTop: 12 
+        <div style={{
+            background: 'var(--bg-card2)',
+            borderRadius: 8,
+            padding: 12,
+            marginTop: 12
         }}>
             <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 8, fontWeight: 600 }}>
                 {isPickup ? '📅 Ready Time' : '🚚 Delivery Schedule'}
             </div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <input
-                    type={isPickup ? 'time' : 'datetime-local'}
-                    value={schedule || ''}
-                    onChange={(e) => onUpdateSchedule(order._id, e.target.value)}
-                    style={{
-                        background: 'var(--bg)',
-                        border: '1px solid var(--border)',
-                        color: 'var(--text)',
-                        borderRadius: 6,
-                        padding: '6px 10px',
-                        fontSize: 12,
-                        flex: 1
-                    }}
-                />
-                {schedule && (
-                    <span style={{ fontSize: 11, color: 'var(--success)', fontWeight: 600 }}>
-                        {isPickup ? 'Ready by' : 'Deliver by'} {new Date(schedule).toLocaleString('en-IN', {
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input
+                        type={isPickup ? 'time' : 'datetime-local'}
+                        value={eta}
+                        onChange={(e) => setEta(e.target.value)}
+                        style={{
+                            background: 'var(--bg)',
+                            border: '1px solid var(--border)',
+                            color: 'var(--text)',
+                            borderRadius: 6,
+                            padding: '6px 10px',
+                            fontSize: 12,
+                            flex: 1
+                        }}
+                    />
+                    <button
+                        onClick={handleSave}
+                        disabled={isSaving}
+                        style={{
+                            background: 'var(--primary)',
+                            color: 'white',
+                            border: 'none',
+                            padding: '6px 12px',
+                            borderRadius: 6,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            opacity: isSaving ? 0.7 : 1
+                        }}
+                    >
+                        {isSaving ? 'Saving...' : 'Save ETA'}
+                    </button>
+                </div>
+                <div>
+                    <input
+                        type="text"
+                        placeholder="Add a status note (optional)..."
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
+                        style={{
+                            width: '100%',
+                            background: 'var(--bg)',
+                            border: '1px solid var(--border)',
+                            color: 'var(--text)',
+                            borderRadius: 6,
+                            padding: '6px 10px',
+                            fontSize: 12
+                        }}
+                    />
+                </div>
+                {order.estimatedDelivery && (
+                    <div style={{ fontSize: 11, color: '#10B981', fontWeight: 600 }}>
+                        Current ETA: {new Date(order.estimatedDelivery).toLocaleString('en-IN', {
                             hour: '2-digit',
                             minute: '2-digit',
-                            ...(isPickup ? {} : { day: 'numeric', month: 'short' })
+                            day: 'numeric',
+                            month: 'short'
                         })}
-                    </span>
+                    </div>
                 )}
             </div>
         </div>
@@ -267,15 +316,15 @@ const ActionButtons = ({ order, onUpdateStatus, onGeneratePickupCode, onCancelOr
     const currentStatus = order.orderStatus;
     const orderType = order.deliveryType === 'pickup' ? ORDER_TYPES.PICKUP : ORDER_TYPES.DELIVERY;
     const userRole = user?.role?.toUpperCase();
-    
+
     // Get available actions based on current state and user role
     const availableActions = OrderStateValidator.getAvailableActions(orderType, currentStatus, userRole);
-    
+
     // Separate primary and secondary actions
     const primaryActions = availableActions.filter(action => action.type === 'primary');
     const secondaryActions = availableActions.filter(action => action.type === 'secondary');
     const dangerActions = availableActions.filter(action => action.type === 'danger');
-    
+
     // Add contact customer action for all non-completed orders
     const allSecondaryActions = [...secondaryActions];
     if (!OrderStateValidator.isTerminalState(currentStatus)) {
@@ -358,17 +407,17 @@ const ActionButtons = ({ order, onUpdateStatus, onGeneratePickupCode, onCancelOr
                     if (action.targetState) {
                         // Validate transition before executing
                         const validation = OrderStateValidator.validateTransition(
-                            orderType, 
-                            currentStatus, 
-                            action.targetState, 
+                            orderType,
+                            currentStatus,
+                            action.targetState,
                             userRole
                         );
-                        
+
                         if (!validation.isValid) {
                             alert(`Invalid action: ${validation.errors.join(', ')}`);
                             return;
                         }
-                        
+
                         await onUpdateStatus(order._id, action.targetState);
                     }
             }
@@ -383,28 +432,28 @@ const ActionButtons = ({ order, onUpdateStatus, onGeneratePickupCode, onCancelOr
         const stateMetadata = OrderUIHelpers.getStateMetadata(currentStatus);
         return (
             <div style={{ marginTop: 20 }}>
-                <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: 8, 
-                    marginBottom: 12 
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    marginBottom: 12
                 }}>
-                    <div style={{ 
-                        width: 4, 
-                        height: 16, 
-                        background: stateMetadata.color, 
-                        borderRadius: 2 
+                    <div style={{
+                        width: 4,
+                        height: 16,
+                        background: stateMetadata.color,
+                        borderRadius: 2
                     }} />
-                    <h4 style={{ 
-                        fontSize: 14, 
-                        fontWeight: 700, 
-                        color: 'var(--text)', 
-                        margin: 0 
+                    <h4 style={{
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: 'var(--text)',
+                        margin: 0
                     }}>
                         Order Status
                     </h4>
                 </div>
-                
+
                 <div style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -415,10 +464,10 @@ const ActionButtons = ({ order, onUpdateStatus, onGeneratePickupCode, onCancelOr
                     borderRadius: 8
                 }}>
                     <span style={{ fontSize: 16 }}>{stateMetadata.icon}</span>
-                    <span style={{ 
-                        fontSize: 13, 
-                        fontWeight: 600, 
-                        color: stateMetadata.color 
+                    <span style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: stateMetadata.color
                     }}>
                         {stateMetadata.label}
                     </span>
@@ -430,23 +479,23 @@ const ActionButtons = ({ order, onUpdateStatus, onGeneratePickupCode, onCancelOr
     return (
         <div style={{ marginTop: 20 }}>
             {/* Actions Header */}
-            <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 8, 
-                marginBottom: 12 
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                marginBottom: 12
             }}>
-                <div style={{ 
-                    width: 4, 
-                    height: 16, 
-                    background: 'var(--primary)', 
-                    borderRadius: 2 
+                <div style={{
+                    width: 4,
+                    height: 16,
+                    background: 'var(--primary)',
+                    borderRadius: 2
                 }} />
-                <h4 style={{ 
-                    fontSize: 14, 
-                    fontWeight: 700, 
-                    color: 'var(--text)', 
-                    margin: 0 
+                <h4 style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: 'var(--text)',
+                    margin: 0
                 }}>
                     Available Actions
                 </h4>
@@ -454,11 +503,11 @@ const ActionButtons = ({ order, onUpdateStatus, onGeneratePickupCode, onCancelOr
 
             {/* Primary Actions */}
             {primaryActions.length > 0 && (
-                <div style={{ 
-                    display: 'flex', 
-                    gap: 8, 
-                    marginBottom: 12, 
-                    flexWrap: 'wrap' 
+                <div style={{
+                    display: 'flex',
+                    gap: 8,
+                    marginBottom: 12,
+                    flexWrap: 'wrap'
                 }}>
                     {primaryActions.map(action => (
                         <button
@@ -488,11 +537,11 @@ const ActionButtons = ({ order, onUpdateStatus, onGeneratePickupCode, onCancelOr
 
             {/* Secondary Actions */}
             {allSecondaryActions.length > 0 && (
-                <div style={{ 
-                    display: 'flex', 
-                    gap: 8, 
-                    marginBottom: 12, 
-                    flexWrap: 'wrap' 
+                <div style={{
+                    display: 'flex',
+                    gap: 8,
+                    marginBottom: 12,
+                    flexWrap: 'wrap'
                 }}>
                     {allSecondaryActions.map(action => (
                         <button
@@ -500,11 +549,11 @@ const ActionButtons = ({ order, onUpdateStatus, onGeneratePickupCode, onCancelOr
                             onClick={() => handleActionClick(action)}
                             style={getButtonStyle(action.type)}
                             onMouseEnter={(e) => {
-                                e.target.style.background = action.type === 'danger' ? 
+                                e.target.style.background = action.type === 'danger' ?
                                     'rgba(239, 68, 68, 0.9)' : 'var(--bg-card)';
                             }}
                             onMouseLeave={(e) => {
-                                e.target.style.background = action.type === 'danger' ? 
+                                e.target.style.background = action.type === 'danger' ?
                                     'var(--danger)' : 'var(--bg-card2)';
                             }}
                             title={action.roles ? `Role: ${action.roles.join(', ')}` : ''}
@@ -518,10 +567,10 @@ const ActionButtons = ({ order, onUpdateStatus, onGeneratePickupCode, onCancelOr
 
             {/* Danger Actions */}
             {dangerActions.length > 0 && (
-                <div style={{ 
-                    display: 'flex', 
-                    gap: 8, 
-                    flexWrap: 'wrap' 
+                <div style={{
+                    display: 'flex',
+                    gap: 8,
+                    flexWrap: 'wrap'
                 }}>
                     {dangerActions.map(action => (
                         <button
@@ -544,9 +593,9 @@ const ActionButtons = ({ order, onUpdateStatus, onGeneratePickupCode, onCancelOr
 const CompactOrderCard = ({ order, isExpanded, onToggle, workflow }) => {
     const isPickup = order.deliveryType === 'pickup';
     const isCompleted = order.orderStatus === 'completed';
-    
+
     return (
-        <div 
+        <div
             style={{
                 background: isCompleted ? 'var(--bg-card2)' : 'var(--bg-card)',
                 border: `1px solid ${isCompleted ? 'var(--border)' : isPickup ? '#10B981' : '#3B82F6'}`,
@@ -561,26 +610,26 @@ const CompactOrderCard = ({ order, isExpanded, onToggle, workflow }) => {
         >
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 {/* Expand/Collapse Icon */}
-                <div style={{ 
-                    fontSize: 12, 
-                    color: 'var(--text-dim)', 
+                <div style={{
+                    fontSize: 12,
+                    color: 'var(--text-dim)',
                     transition: 'transform 0.2s ease',
                     transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'
                 }}>
                     ▶
                 </div>
-                
+
                 {/* Order Icon */}
                 <div style={{ fontSize: 16 }}>
                     {isPickup ? '📦' : '🚚'}
                 </div>
-                
+
                 {/* Order Info */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                        <span style={{ 
-                            fontSize: 11, 
-                            color: 'var(--text-dim)', 
+                        <span style={{
+                            fontSize: 11,
+                            color: 'var(--text-dim)',
                             fontFamily: 'monospace',
                             fontWeight: 600
                         }}>
@@ -590,9 +639,9 @@ const CompactOrderCard = ({ order, isExpanded, onToggle, workflow }) => {
                         {statusBadge(order.orderStatus)}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ 
-                            fontSize: 13, 
-                            fontWeight: 600, 
+                        <span style={{
+                            fontSize: 13,
+                            fontWeight: 600,
                             color: 'var(--text)',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
@@ -600,9 +649,9 @@ const CompactOrderCard = ({ order, isExpanded, onToggle, workflow }) => {
                         }}>
                             {order.customer?.name || 'N/A'}
                         </span>
-                        <span style={{ 
-                            fontSize: 14, 
-                            fontWeight: 700, 
+                        <span style={{
+                            fontSize: 14,
+                            fontWeight: 700,
                             color: 'var(--primary-light)',
                             marginLeft: 8
                         }}>
@@ -610,12 +659,12 @@ const CompactOrderCard = ({ order, isExpanded, onToggle, workflow }) => {
                         </span>
                     </div>
                 </div>
-                
+
                 {/* Compact Progress */}
-                <CompactProgress 
-                    workflow={workflow} 
-                    currentStatus={order.orderStatus} 
-                    type={order.deliveryType} 
+                <CompactProgress
+                    workflow={workflow}
+                    currentStatus={order.orderStatus}
+                    type={order.deliveryType}
                 />
             </div>
         </div>
@@ -633,20 +682,6 @@ export default function SellerDashboard() {
     const [activeTab, setActiveTab] = useState('orders');
     const [orderFilter, setOrderFilter] = useState('all');
     const [expandedOrders, setExpandedOrders] = useState(new Set());
-    const [orderSchedules, setOrderSchedules] = useState({});
-    
-    // Initialize OrderStateManager
-    const [orderStateManager] = useState(() => {
-        const apiClient = {
-            get: (url) => fetch(`${API}${url}`, { headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user?.token}` }}),
-            put: (url, data) => fetch(`${API}${url}`, { 
-                method: 'PUT', 
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user?.token}` },
-                body: JSON.stringify(data)
-            })
-        };
-        return new OrderStateManager(apiClient);
-    });
 
     // Product form
     const [showProductForm, setShowProductForm] = useState(false);
@@ -696,13 +731,13 @@ export default function SellerDashboard() {
         fetchAll();
     }, [user, navigate, fetchAll]);
 
-    // Real-time polling for order updates
+    // Real-time polling for order updates (10s)
     useEffect(() => {
         if (!user || user.role !== 'seller') return;
 
         const pollInterval = setInterval(() => {
             fetchAll();
-        }, 30000); // Poll every 30 seconds
+        }, 10000);
 
         return () => clearInterval(pollInterval);
     }, [user, fetchAll]);
@@ -790,35 +825,33 @@ export default function SellerDashboard() {
             features: (p.features || []).join(', '),
             specifications: p.specifications || {},
             medicalInfo: p.medicalInfo || {},
-            variants: (p.variants || []).map(v => ({ ...v, preview: v.image ? `http://localhost:5000${v.image}` : null }))
+            variants: (p.variants || []).map(v => ({ ...v, preview: v.image ? `${IMAGE_URL}${v.image}` : null }))
         });
         setShowProductForm(true);
     };
 
+    // ─── Unified order update helper ───────────────────────────────────────────
+    // Single source of truth for all seller mutations: status, ETA, notes.
+    const updateOrder = async (orderId, data) => {
+        const res = await fetch(`${API}/orders/${orderId}`, {
+            method: 'PATCH',
+            headers: headers(),
+            body: JSON.stringify(data)
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.message || 'Failed to update order');
+        }
+        return res.json();
+    };
+
     const handleUpdateStatus = async (orderId, newStatus) => {
         try {
-            const order = orders.find(o => o._id === orderId);
-            if (!order) {
-                throw new Error('Order not found');
-            }
-            
-            const orderType = order.deliveryType === 'pickup' ? ORDER_TYPES.PICKUP : ORDER_TYPES.DELIVERY;
-            const currentStatus = order.orderStatus;
-            const userRole = user?.role?.toUpperCase();
-            
-            // Execute transition using OrderStateManager
-            await orderStateManager.executeTransition(
-                orderId, 
-                orderType, 
-                currentStatus, 
-                newStatus, 
-                userRole
-            );
-            
+            await updateOrder(orderId, { status: newStatus });
             showToast('Order status updated successfully!');
             fetchAll();
-        } catch (err) { 
-            showToast(err.message, 'error'); 
+        } catch (err) {
+            showToast(err.message, 'error');
         }
     };
 
@@ -834,20 +867,23 @@ export default function SellerDashboard() {
         });
     };
 
-    const updateOrderSchedule = (orderId, schedule) => {
-        setOrderSchedules(prev => ({
-            ...prev,
-            [orderId]: schedule
-        }));
+    const handleUpdateDeliveryTime = async (orderId, estimatedDelivery, statusNote) => {
+        try {
+            await updateOrder(orderId, { estimatedDelivery, statusNote });
+            showToast('Delivery information updated!');
+            fetchAll();
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
     };
 
     const generatePickupCode = async (orderId) => {
         try {
-            await orderStateManager.generatePickupCode(orderId);
+            await updateOrder(orderId, { status: 'ready_for_pickup' });
             showToast('Pickup code generated successfully!');
             fetchAll();
-        } catch (err) { 
-            showToast(err.message, 'error'); 
+        } catch (err) {
+            showToast(err.message, 'error');
         }
     };
 
@@ -855,13 +891,12 @@ export default function SellerDashboard() {
         if (!window.confirm('Are you sure you want to cancel this order? This action cannot be undone.')) {
             return;
         }
-        
         try {
-            await orderStateManager.cancelOrder(orderId);
+            await updateOrder(orderId, { status: 'cancelled' });
             showToast('Order cancelled successfully!');
             fetchAll();
-        } catch (err) { 
-            showToast(err.message, 'error'); 
+        } catch (err) {
+            showToast(err.message, 'error');
         }
     };
 
@@ -869,35 +904,35 @@ export default function SellerDashboard() {
         const customerEmail = order.customer?.email;
         const customerPhone = order.delivery_phone || order.customer?.phone;
         const orderId = order._id.slice(-8).toUpperCase();
-        
+
         if (!customerEmail && !customerPhone) {
             showToast('Customer contact information not available', 'error');
             return;
         }
-        
+
         let contactInfo = `Order #${orderId}\n`;
         contactInfo += `Customer: ${order.customer?.name || 'N/A'}\n`;
-        
+
         if (customerEmail) {
             contactInfo += `Email: ${customerEmail}`;
         }
         if (customerPhone) {
             contactInfo += `${customerEmail ? '\n' : ''}Phone: ${customerPhone}`;
         }
-        
+
         // Create a modal-like dialog with contact options
         const contactOptions = [];
-        
+
         if (customerEmail) {
             contactOptions.push(`📧 Email: ${customerEmail}`);
         }
-        
+
         if (customerPhone) {
             contactOptions.push(`📱 Phone: ${customerPhone}`);
         }
-        
+
         const message = `Contact Information for Order #${orderId}\n\n${contactOptions.join('\n')}\n\nClick OK to copy contact details to clipboard.`;
-        
+
         if (window.confirm(message)) {
             const clipboardText = contactOptions.join('\n');
             navigator.clipboard.writeText(clipboardText).then(() => {
@@ -923,14 +958,14 @@ export default function SellerDashboard() {
     if (!shop) return null;
 
     // Analytics
-    const totalRevenue = orders.filter(o => o.orderStatus === 'delivered' || o.orderStatus === 'picked_up').reduce((sum, o) => sum + o.totalAmount, 0);
+    const totalRevenue = orders.filter(o => ['delivered', 'picked_up', 'completed'].includes(o.orderStatus)).reduce((sum, o) => sum + o.totalAmount, 0);
     const pendingOrders = orders.filter(o => o.orderStatus === 'pending').length;
     const totalOrders = orders.length;
-    
+
     // Filter orders based on selected filter
-    const filteredOrders = orderFilter === 'all' ? orders : 
-                          orderFilter === 'pickup' ? orders.filter(o => o.deliveryType === 'pickup') :
-                          orders.filter(o => o.deliveryType === 'delivery');
+    const filteredOrders = orderFilter === 'all' ? orders :
+        orderFilter === 'pickup' ? orders.filter(o => o.deliveryType === 'pickup') :
+            orders.filter(o => o.deliveryType === 'delivery');
 
     const navItems = [
         { id: 'dashboard', label: 'Dashboard', icon: '📊' },
@@ -1243,7 +1278,7 @@ export default function SellerDashboard() {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                                 {products.map(p => {
                                     let img = p.images?.[0] || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=6C3DE1&color=fff&size=64`;
-                                    if (img && img.startsWith('/uploads/')) img = `http://localhost:5000${img}`;
+                                    if (img && img.startsWith('/uploads/')) img = `${IMAGE_URL}${img}`;
                                     return (
                                         <div key={p._id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
                                             <img src={img} alt={p.name} style={{ width: 56, height: 56, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} onError={e => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=6C3DE1&color=fff&size=64`; }} />
@@ -1328,9 +1363,9 @@ export default function SellerDashboard() {
                                 <div className="icon">🛍️</div>
                                 <h3>No orders found</h3>
                                 <p>
-                                    {orderFilter === 'all' ? 'Orders from customers will appear here.' : 
-                                     orderFilter === 'pickup' ? 'No pickup orders found.' : 
-                                     'No delivery orders found.'}
+                                    {orderFilter === 'all' ? 'Orders from customers will appear here.' :
+                                        orderFilter === 'pickup' ? 'No pickup orders found.' :
+                                            'No delivery orders found.'}
                                 </p>
                             </div>
                         ) : (
@@ -1340,17 +1375,17 @@ export default function SellerDashboard() {
                                     const workflow = isPickup ? PICKUP_WORKFLOW : DELIVERY_WORKFLOW;
                                     const isCompleted = o.orderStatus === 'completed';
                                     const isExpanded = expandedOrders.has(o._id);
-                                    
+
                                     return (
                                         <div key={o._id}>
                                             {/* Compact Card */}
-                                            <CompactOrderCard 
+                                            <CompactOrderCard
                                                 order={o}
                                                 isExpanded={isExpanded}
                                                 onToggle={toggleOrderExpansion}
                                                 workflow={workflow}
                                             />
-                                            
+
                                             {/* Expanded Content */}
                                             {isExpanded && (
                                                 <div style={{
@@ -1363,15 +1398,15 @@ export default function SellerDashboard() {
                                                     animation: 'slideDown 0.3s ease'
                                                 }}>
                                                     {/* Full Progress Tracker */}
-                                                    <ProgressTracker 
+                                                    <ProgressTracker
                                                         order={o}
                                                     />
 
                                                     {/* Order Details Header */}
-                                                    <div style={{ 
-                                                        display: 'flex', 
-                                                        justifyContent: 'space-between', 
-                                                        alignItems: 'flex-start', 
+                                                    <div style={{
+                                                        display: 'flex',
+                                                        justifyContent: 'space-between',
+                                                        alignItems: 'flex-start',
                                                         marginBottom: 16,
                                                         paddingTop: 16,
                                                         borderTop: '1px solid var(--border)'
@@ -1396,10 +1431,10 @@ export default function SellerDashboard() {
                                                         {isPickup ? (
                                                             <div style={{ textAlign: 'center' }}>
                                                                 <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 8, fontWeight: 600, textTransform: 'uppercase' }}>Pickup Code</div>
-                                                                <div style={{ 
-                                                                    fontSize: 28, 
-                                                                    fontWeight: 900, 
-                                                                    color: '#10B981', 
+                                                                <div style={{
+                                                                    fontSize: 28,
+                                                                    fontWeight: 900,
+                                                                    color: '#10B981',
                                                                     letterSpacing: 4,
                                                                     fontFamily: 'monospace',
                                                                     marginBottom: 4
@@ -1441,15 +1476,14 @@ export default function SellerDashboard() {
                                                     </div>
 
                                                     {/* Scheduling */}
-                                                    <OrderScheduling 
+                                                    <OrderScheduling
                                                         order={o}
-                                                        schedule={orderSchedules[o._id]}
-                                                        onUpdateSchedule={updateOrderSchedule}
+                                                        onUpdateDeliveryTime={handleUpdateDeliveryTime}
                                                     />
 
                                                     {/* Action Buttons */}
-                                                    <ActionButtons 
-                                                        order={o} 
+                                                    <ActionButtons
+                                                        order={o}
                                                         onUpdateStatus={handleUpdateStatus}
                                                         onGeneratePickupCode={generatePickupCode}
                                                         onCancelOrder={handleCancelOrder}

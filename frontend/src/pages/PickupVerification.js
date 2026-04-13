@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../App';
 
-const API = 'http://localhost:5000/api';
+import { API_URL } from '../config';
+
+const API = API_URL;
 
 export default function PickupVerification() {
     const { user, showToast } = useApp();

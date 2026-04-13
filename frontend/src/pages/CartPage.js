@@ -1,6 +1,9 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../App';
+import { API_URL, IMAGE_URL } from '../config';
+
+const API = API_URL;
 
 export default function CartPage() {
     const { user, cart, removeFromCart, updateQty, clearCart, openAuth, showToast } = useApp();
@@ -67,7 +70,7 @@ export default function CartPage() {
                         {cart.items.map(item => {
                             let img = item.image || (item.images && item.images[0])
                                 || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=6C3DE1&color=fff&size=100`;
-                            if (img && img.startsWith('/uploads/')) img = `http://localhost:5000${img}`;
+                            if (img && img.startsWith('/uploads/')) img = `${IMAGE_URL}${img}`;
                             return (
                                 <div key={item.cartItemId || item._id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: 20, display: 'flex', gap: 16, alignItems: 'center' }}>
                                     <img src={img} alt={item.name} style={{ width: 80, height: 80, borderRadius: 12, objectFit: 'cover', flexShrink: 0 }} onError={e => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=6C3DE1&color=fff&size=100`; }} />

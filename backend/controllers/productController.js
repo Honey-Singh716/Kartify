@@ -66,7 +66,7 @@ const parseVariants = (body, files) => {
 
         const file = files?.find(f => f.fieldname === `variant_image_${i}`);
         if (file) {
-            variant.image = `/uploads/${file.filename}`;
+            variant.image = file.path; // Cloudinary URL
         }
 
         if (variant.color) variants.push(variant);
@@ -99,7 +99,7 @@ const createProduct = async (req, res) => {
 
         const mainImage = req.files?.find(f => f.fieldname === 'image');
         if (mainImage) {
-            productData.images = [`/uploads/${mainImage.filename}`];
+            productData.images = [mainImage.path]; // Cloudinary URL
         } else if (productData.variants.length > 0 && productData.variants[0].image) {
             productData.images = [productData.variants[0].image];
         }
@@ -174,7 +174,7 @@ const updateProduct = async (req, res) => {
 
         const mainFile = req.files?.find(f => f.fieldname === 'image');
         if (mainFile) {
-            updateData.images = [`/uploads/${mainFile.filename}`];
+            updateData.images = [mainFile.path]; // Cloudinary URL
         } else if (updateData.variants.length > 0 && updateData.variants[0].image && (!product.images || product.images.length === 0)) {
             updateData.images = [updateData.variants[0].image];
         } else {

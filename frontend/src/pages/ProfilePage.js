@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../App';
+import { API_URL, IMAGE_URL } from '../config';
 
-const API = 'http://localhost:5000/api';
+const API = API_URL;
 
 /* ─── tiny inline map component (Leaflet via CDN) ─── */
 function LocationPickerMap({ location, onChange }) {

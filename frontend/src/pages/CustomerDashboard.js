@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../App';
-import { 
-    ORDER_TYPES, 
-    ORDER_STATES, 
-    OrderUIHelpers 
+import {
+    ORDER_TYPES,
+    ORDER_STATES,
+    OrderUIHelpers
 } from '../utils/orderStateManagement';
 
-const API = 'http://localhost:5000/api';
+import { API_URL, IMAGE_URL } from '../config';
+
+const API = API_URL;
 
 // Summary Stats Component
 const SummaryStats = ({ orders }) => {
@@ -19,30 +21,30 @@ const SummaryStats = ({ orders }) => {
     };
 
     const statCards = [
-        { 
-            label: 'Total Orders', 
-            value: stats.total, 
+        {
+            label: 'Total Orders',
+            value: stats.total,
             icon: '📦',
             color: 'var(--primary-light)',
             bgColor: 'rgba(108, 61, 225, 0.1)'
         },
-        { 
-            label: 'In Transit', 
-            value: stats.inTransit, 
+        {
+            label: 'In Transit',
+            value: stats.inTransit,
             icon: '🚚',
             color: '#F59E0B',
             bgColor: 'rgba(245, 158, 11, 0.1)'
         },
-        { 
-            label: 'Completed', 
-            value: stats.completed, 
+        {
+            label: 'Completed',
+            value: stats.completed,
             icon: '✅',
             color: '#10B981',
             bgColor: 'rgba(16, 185, 129, 0.1)'
         },
-        { 
-            label: 'Pending', 
-            value: stats.pending, 
+        {
+            label: 'Pending',
+            value: stats.pending,
             icon: '⏳',
             color: '#6B7280',
             bgColor: 'rgba(107, 114, 128, 0.1)'
@@ -50,11 +52,11 @@ const SummaryStats = ({ orders }) => {
     ];
 
     return (
-        <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-            gap: 16, 
-            marginBottom: 32 
+        <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: 16,
+            marginBottom: 32
         }}>
             {statCards.map(stat => (
                 <div key={stat.label} style={{
@@ -78,17 +80,17 @@ const SummaryStats = ({ orders }) => {
                             {stat.icon}
                         </div>
                         <div>
-                            <div style={{ 
-                                fontSize: 24, 
-                                fontWeight: 800, 
+                            <div style={{
+                                fontSize: 24,
+                                fontWeight: 800,
                                 color: stat.color,
                                 lineHeight: 1
                             }}>
                                 {stat.value}
                             </div>
-                            <div style={{ 
-                                fontSize: 12, 
-                                color: 'var(--text-dim)', 
+                            <div style={{
+                                fontSize: 12,
+                                color: 'var(--text-dim)',
                                 fontWeight: 600,
                                 textTransform: 'uppercase',
                                 letterSpacing: '0.5px'
@@ -105,10 +107,10 @@ const SummaryStats = ({ orders }) => {
 
 // Minimal Progress Bar Component
 const MinimalProgressBar = ({ progress, color }) => (
-    <div style={{ 
-        width: '100%', 
-        height: 6, 
-        background: 'var(--border)', 
+    <div style={{
+        width: '100%',
+        height: 6,
+        background: 'var(--border)',
         borderRadius: 3,
         overflow: 'hidden',
         marginBottom: 12
@@ -154,17 +156,17 @@ const OrderCard = ({ order }) => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
                     <div style={{ fontSize: 18 }}>{deliveryIcon}</div>
                     <div style={{ flex: 1 }}>
-                        <div style={{ 
-                            fontSize: 13, 
-                            color: 'var(--text-dim)', 
+                        <div style={{
+                            fontSize: 13,
+                            color: 'var(--text-dim)',
                             fontFamily: 'monospace',
                             fontWeight: 600,
                             marginBottom: 2
                         }}>
                             #{order._id.slice(-8).toUpperCase()}
                         </div>
-                        <div style={{ 
-                            fontSize: 15, 
+                        <div style={{
+                            fontSize: 15,
                             fontWeight: 700,
                             color: stateMetadata.color,
                             display: 'flex',
@@ -176,19 +178,19 @@ const OrderCard = ({ order }) => {
                         </div>
                     </div>
                 </div>
-                
+
                 <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div>
-                        <div style={{ 
-                            fontSize: 16, 
-                            fontWeight: 700, 
-                            color: 'var(--primary-light)' 
+                        <div style={{
+                            fontSize: 16,
+                            fontWeight: 700,
+                            color: 'var(--primary-light)'
                         }}>
                             ₹{order.totalAmount.toLocaleString('en-IN')}
                         </div>
-                        <div style={{ 
-                            fontSize: 11, 
-                            color: 'var(--text-dim)' 
+                        <div style={{
+                            fontSize: 11,
+                            color: 'var(--text-dim)'
                         }}>
                             {new Date(order.createdAt).toLocaleDateString('en-IN', {
                                 day: 'numeric',
@@ -196,8 +198,8 @@ const OrderCard = ({ order }) => {
                             })}
                         </div>
                     </div>
-                    <div style={{ 
-                        fontSize: 12, 
+                    <div style={{
+                        fontSize: 12,
                         color: 'var(--text-dim)',
                         transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
                         transition: 'transform 0.2s ease'
@@ -309,26 +311,35 @@ const OrderCard = ({ order }) => {
                                 Delivery Address
                             </div>
                             <div style={{ fontSize: 13, color: 'var(--text)' }}>
-                                <div style={{ fontWeight: 600, marginBottom: 4 }}>
-                                    {order.delivery_name}
-                                </div>
+                                <div style={{ fontWeight: 600, marginBottom: 4 }}>{order.delivery_name}</div>
                                 <div>{order.delivery_address}</div>
                                 {order.delivery_city && <div>{order.delivery_city}, {order.delivery_pincode}</div>}
-                                {order.orderStatus === 'out_for_delivery' && (
-                                    <div style={{
-                                        background: 'rgba(59, 130, 246, 0.1)',
-                                        color: '#3B82F6',
-                                        padding: '8px 12px',
-                                        borderRadius: 8,
-                                        fontSize: 12,
-                                        fontWeight: 600,
-                                        textAlign: 'center',
-                                        marginTop: 8
-                                    }}>
-                                        🕐 ETA: Today, 6 PM - 9 PM
-                                    </div>
-                                )}
                             </div>
+                        </div>
+                    )}
+
+                    {/* ETA & Seller Note — shown for all order types when set */}
+                    {(order.estimatedDelivery || order.statusNote) && (
+                        <div style={{
+                            background: 'rgba(59, 130, 246, 0.08)',
+                            border: '1px solid rgba(59, 130, 246, 0.2)',
+                            borderRadius: 8,
+                            padding: '10px 14px',
+                            marginBottom: 16
+                        }}>
+                            {order.estimatedDelivery && (
+                                <div style={{ fontSize: 13, fontWeight: 600, color: '#3B82F6', marginBottom: order.statusNote ? 4 : 0 }}>
+                                    🕐 ETA: {new Date(order.estimatedDelivery).toLocaleString('en-IN', {
+                                        weekday: 'short', day: 'numeric', month: 'short',
+                                        hour: '2-digit', minute: '2-digit'
+                                    })}
+                                </div>
+                            )}
+                            {order.statusNote && (
+                                <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>
+                                    📝 {order.statusNote}
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -349,9 +360,9 @@ const OrderCard = ({ order }) => {
                                 {isPickup ? '🏪' : '📦'}
                             </div>
                             <div style={{ flex: 1 }}>
-                                <div style={{ 
-                                    fontSize: 11, 
-                                    fontWeight: 600, 
+                                <div style={{
+                                    fontSize: 11,
+                                    fontWeight: 600,
                                     color: stateMetadata.color,
                                     marginBottom: 2
                                 }}>
@@ -365,9 +376,9 @@ const OrderCard = ({ order }) => {
                     )}
 
                     {/* Footer */}
-                    <div style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
                         alignItems: 'center',
                         marginTop: 16,
                         paddingTop: 12,
@@ -393,9 +404,9 @@ export default function CustomerDashboard() {
     const [loading, setLoading] = useState(true);
     const [activeFilter, setActiveFilter] = useState('all');
 
-    const headers = useCallback(() => ({ 
-        'Content-Type': 'application/json', 
-        Authorization: `Bearer ${user?.token}` 
+    const headers = useCallback(() => ({
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${user?.token}`
     }), [user]);
 
     const fetchOrders = useCallback(async () => {
@@ -403,16 +414,16 @@ export default function CustomerDashboard() {
             navigate('/login');
             return;
         }
-        
+
         setLoading(true);
         try {
             const res = await fetch(`${API}/orders/my-orders`, { headers: headers() });
             const data = await res.json();
-            
+
             if (!res.ok) {
                 throw new Error(data.message || 'Failed to fetch orders');
             }
-            
+
             setOrders(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error(err);
@@ -430,35 +441,49 @@ export default function CustomerDashboard() {
         fetchOrders();
     }, [user, navigate, fetchOrders]);
 
-    // Real-time polling for order updates
+    // Real-time polling for order updates (10s)
     useEffect(() => {
         if (!user || user.role !== 'customer') return;
 
         const pollInterval = setInterval(() => {
             fetchOrders();
-        }, 30000); // Poll every 30 seconds
+        }, 10000);
 
         return () => clearInterval(pollInterval);
     }, [user, fetchOrders]);
 
+    // Refetch immediately when the tab becomes visible (instant sync)
+    useEffect(() => {
+        if (!user || user.role !== 'customer') return;
+
+        const handleVisibility = () => {
+            if (document.visibilityState === 'visible') {
+                fetchOrders();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibility);
+        return () => document.removeEventListener('visibilitychange', handleVisibility);
+    }, [user, fetchOrders]);
+
     // Filter orders
     const filteredOrders = activeFilter === 'all' ? orders :
-                          activeFilter === 'pickup' ? orders.filter(o => o.deliveryType === ORDER_TYPES.PICKUP) :
-                          orders.filter(o => o.deliveryType === ORDER_TYPES.DELIVERY);
+        activeFilter === 'pickup' ? orders.filter(o => o.deliveryType === ORDER_TYPES.PICKUP) :
+            orders.filter(o => o.deliveryType === ORDER_TYPES.DELIVERY);
 
     // Sort orders by date (newest first)
-    const sortedOrders = [...filteredOrders].sort((a, b) => 
+    const sortedOrders = [...filteredOrders].sort((a, b) =>
         new Date(b.createdAt) - new Date(a.createdAt)
     );
 
     if (!user) return null;
     if (loading) return (
-        <div style={{ 
-            minHeight: '100vh', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            background: 'var(--bg)' 
+        <div style={{
+            minHeight: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'var(--bg)'
         }}>
             <div className="spinner" />
         </div>
@@ -472,11 +497,11 @@ export default function CustomerDashboard() {
                 padding: '40px 20px 60px',
                 textAlign: 'center'
             }}>
-                <h1 style={{ 
-                    fontSize: 28, 
-                    fontWeight: 800, 
-                    color: 'white', 
-                    marginBottom: 8 
+                <h1 style={{
+                    fontSize: 28,
+                    fontWeight: 800,
+                    color: 'white',
+                    marginBottom: 8
                 }}>
                     My Orders
                 </h1>
@@ -487,14 +512,14 @@ export default function CustomerDashboard() {
 
             {/* Main Content */}
             <div style={{ maxWidth: 900, margin: '-40px auto 0', padding: '0 20px 40px' }}>
-                
+
                 {/* Summary Stats */}
                 <SummaryStats orders={orders} />
 
                 {/* Filter Tabs */}
-                <div style={{ 
-                    display: 'flex', 
-                    gap: 8, 
+                <div style={{
+                    display: 'flex',
+                    gap: 8,
                     marginBottom: 24,
                     background: 'var(--bg-card)',
                     border: '1px solid var(--border)',
@@ -557,12 +582,12 @@ export default function CustomerDashboard() {
                             No orders found
                         </h3>
                         <p style={{ color: 'var(--text-muted)', marginBottom: 24 }}>
-                            {activeFilter === 'all' ? 'You haven\'t placed any orders yet.' : 
-                             activeFilter === 'pickup' ? 'No pickup orders found.' : 
-                             'No delivery orders found.'}
+                            {activeFilter === 'all' ? 'You haven\'t placed any orders yet.' :
+                                activeFilter === 'pickup' ? 'No pickup orders found.' :
+                                    'No delivery orders found.'}
                         </p>
                         {activeFilter !== 'all' && (
-                            <button 
+                            <button
                                 onClick={() => setActiveFilter('all')}
                                 style={{
                                     background: '#10B981',

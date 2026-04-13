@@ -3,7 +3,9 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import ReviewCard from '../components/ReviewCard';
 import { useApp } from '../App';
 
-const API = 'http://localhost:5000/api';
+import { API_URL, IMAGE_URL } from '../config';
+
+const API = API_URL;
 
 export default function ProductPage() {
     const { id } = useParams();
@@ -127,7 +129,7 @@ export default function ProductPage() {
                     <div>
                         <div style={{ borderRadius: 20, overflow: 'hidden', background: 'var(--bg-card)', border: '1px solid var(--border)', marginBottom: 12, aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <img
-                                src={getDisplayImg()?.startsWith('/uploads/') ? `http://localhost:5000${getDisplayImg()}` : getDisplayImg()}
+                                src={getDisplayImg()?.startsWith('/uploads/') ? `${IMAGE_URL}${getDisplayImg()}` : getDisplayImg()}
                                 alt={product.name}
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                 onError={e => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(product.name)}&background=6C3DE1&color=fff&size=400`; }}
@@ -137,7 +139,7 @@ export default function ProductPage() {
                             <div style={{ display: 'flex', gap: 8 }}>
                                 {imgs.map((img, i) => (
                                     <button key={i} onClick={() => setSelectedImg(i)} style={{ width: 64, height: 64, borderRadius: 10, overflow: 'hidden', border: `2px solid ${i === selectedImg ? 'var(--primary)' : 'var(--border)'}`, padding: 0, background: 'none', cursor: 'pointer' }}>
-                                        <img src={img?.startsWith('/uploads/') ? `http://localhost:5000${img}` : img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        <img src={img?.startsWith('/uploads/') ? `${IMAGE_URL}${img}` : img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                     </button>
                                 ))}
                             </div>
