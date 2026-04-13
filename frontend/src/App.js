@@ -15,6 +15,21 @@ import ProfilePage from './pages/ProfilePage';
 import Navbar from './components/Navbar';
 import 'leaflet/dist/leaflet.css';
 
+// Protected Route Components
+const SellerRoute = ({ children }) => {
+    const { user } = useApp();
+    if (!user) return <Navigate to="/login" />;
+    if (user.role !== 'seller') return <Navigate to="/" />;
+    return children;
+};
+
+const CustomerRoute = ({ children }) => {
+    const { user } = useApp();
+    if (!user) return <Navigate to="/login" />;
+    if (user.role !== 'customer') return <Navigate to="/" />;
+    return children;
+};
+
 const API = 'http://localhost:5000/api';
 
 // =================== CONTEXT ===================
@@ -331,10 +346,26 @@ export default function App() {
                                 <Route path="/cart" element={<CartPage />} />
                                 <Route path="/checkout" element={<CheckoutPage />} />
                                 <Route path="/seller/signup" element={<SellerSignup />} />
-                                <Route path="/seller/dashboard" element={<SellerDashboard />} />
-                                <Route path="/seller/pickup-verification" element={<PickupVerification />} />
-                                <Route path="/customer/dashboard" element={<CustomerDashboard />} />
-                                <Route path="/customer/profile" element={<ProfilePage />} />
+                                <Route path="/seller/dashboard" element={
+                                    <SellerRoute>
+                                        <SellerDashboard />
+                                    </SellerRoute>
+                                } />
+                                <Route path="/seller/pickup-verification" element={
+                                    <SellerRoute>
+                                        <PickupVerification />
+                                    </SellerRoute>
+                                } />
+                                <Route path="/customer/dashboard" element={
+                                    <CustomerRoute>
+                                        <CustomerDashboard />
+                                    </CustomerRoute>
+                                } />
+                                <Route path="/customer/profile" element={
+                                    <CustomerRoute>
+                                        <ProfilePage />
+                                    </CustomerRoute>
+                                } />
                             </Routes>
                         </>
                     } />

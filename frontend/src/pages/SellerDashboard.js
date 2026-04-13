@@ -3,6 +3,14 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../App';
 import ReviewCard from '../components/ReviewCard';
 import MapPicker from '../components/MapPicker';
+import { 
+    ORDER_TYPES, 
+    ORDER_STATES, 
+    STATE_ACTIONS, 
+    OrderStateValidator, 
+    OrderStateManager,
+    OrderUIHelpers 
+} from '../utils/orderStateManagement';
 
 const API = 'http://localhost:5000/api';
 
@@ -18,23 +26,627 @@ const CATEGORY_ATTRIBUTES = {
     'Fashion & Clothing': ['Size', 'Color', 'Fabric']
 };
 
-const DELIVERY_STATUSES = ['pending', 'confirmed', 'packed', 'ready_for_pickup', 'delivered'];
-const PICKUP_STATUSES = ['pending', 'confirmed', 'ready_for_pickup', 'picked_up'];
+const DELIVERY_WORKFLOW = ['confirmed', 'out_for_delivery', 'delivered', 'completed'];
+const PICKUP_WORKFLOW = ['confirmed', 'ready_for_pickup', 'picked_up', 'completed'];
 
-const statusBadge = (s) => {
-    const cls = { pending: 'warning', confirmed: 'primary', packed: 'primary', shipped: 'primary', delivered: 'success', 'ready_for_pickup': 'success', 'picked_up': 'success' };
-    return <span className={`badge badge - ${cls[s] || 'warning'} `} style={{ textTransform: 'capitalize' }}>{s.replace(/_/g, ' ')}</span>;
+const statusBadge = (status) => {
+    const stateMetadata = OrderUIHelpers.getStateMetadata(status);
+    return (
+        <span 
+            style={{
+                background: stateMetadata.bgColor,
+                color: stateMetadata.color,
+                padding: '4px 12px',
+                borderRadius: 12,
+                fontSize: 12,
+                fontWeight: 600,
+                textTransform: 'capitalize',
+                border: `1px solid ${stateMetadata.color}20`,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4
+            }}
+        >
+            <span>{stateMetadata.icon}</span>
+            {stateMetadata.label}
+        </span>
+    );
+};
+
+// Progress tracker component with new state management
+const ProgressTracker = ({ order }) => {
+    if (!order) return null;
+    const isPickup = order.deliveryType === 'pickup';
+    const orderType = isPickup ? ORDER_TYPES.PICKUP : ORDER_TYPES.DELIVERY;
+    const currentStatus = order.orderStatus;
+    
+    // Get the workflow based on order type
+    const getWorkflow = (type) => {
+        if (type === ORDER_TYPES.PICKUP) {
+            return [
+                ORDER_STATES.CONFIRMED,
+                ORDER_STATES.READY_FOR_PICKUP,
+                ORDER_STATES.PICKED_UP,
+                ORDER_STATES.COMPLETED
+            ];
+        } else {
+            return [
+                ORDER_STATES.CONFIRMED,
+                ORDER_STATES.OUT_FOR_DELIVERY,
+                ORDER_STATES.DELIVERED,
+                ORDER_STATES.COMPLETED
+            ];
+        }
+    };
+    
+    const workflow = getWorkflow(orderType);
+    const currentIndex = workflow.indexOf(currentStatus);
+    
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '16px 0' }}>
+            {workflow.map((stage, index) => {
+                const isCompleted = index < currentIndex;
+                const isCurrent = index === currentIndex;
+                const isFuture = index > currentIndex;
+                const stateMetadata = OrderUIHelpers.getStateMetadata(stage);
+                
+                return (
+                    <React.Fragment key={stage}>
+                        <div style={{ 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            alignItems: 'center',
+                            flex: 1,
+                            position: 'relative'
+                        }}>
+                            <div style={{
+                                width: 32,
+                                height: 32,
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: 14,
+                                fontWeight: 700,
+                                background: isCompleted ? stateMetadata.color : 
+                                           isCurrent ? stateMetadata.color : 
+                                           'var(--bg-card2)',
+                                border: isCurrent ? `2px solid ${stateMetadata.color}` : 
+                                         '2px solid var(--border)',
+                                color: isCompleted || isCurrent ? 'white' : 'var(--text-dim)',
+                                transition: 'all 0.3s ease'
+                            }}>
+                                {isCompleted ? '✓' : stateMetadata.icon}
+                            </div>
+                            <span style={{
+                                fontSize: 11,
+                                marginTop: 6,
+                                fontWeight: isCurrent ? 700 : 500,
+                                color: isCurrent ? 'var(--text)' : 
+                                       isCompleted ? stateMetadata.color : 'var(--text-dim)',
+                                textAlign: 'center',
+                                textTransform: 'capitalize'
+                            }}>
+                                {stateMetadata.label}
+                            </span>
+                        </div>
+                        {index < workflow.length - 1 && (
+                            <div style={{
+                                flex: 1,
+                                height: 2,
+                                background: isCompleted ? stateMetadata.color : 'var(--border)',
+                                margin: '0 4px'
+                            }} />
+                        )}
+                    </React.Fragment>
+                );
+            })}
+        </div>
+    );
+};
+
+// Order type badge component
+const OrderTypeBadge = ({ type }) => {
+    if (type === 'pickup') {
+        return (
+            <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                background: 'rgba(16, 185, 129, 0.15)',
+                color: '#10B981',
+                padding: '4px 10px',
+                borderRadius: 20,
+                fontSize: 12,
+                fontWeight: 700,
+                border: '1px solid rgba(16, 185, 129, 0.3)'
+            }}>
+                🟢 PICKUP
+            </div>
+        );
+    } else {
+        return (
+            <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                background: 'rgba(59, 130, 246, 0.15)',
+                color: '#3B82F6',
+                padding: '4px 10px',
+                borderRadius: 20,
+                fontSize: 12,
+                fontWeight: 700,
+                border: '1px solid rgba(59, 130, 246, 0.3)'
+            }}>
+                🔵 DELIVERY
+            </div>
+        );
+    }
+};
+
+// Compact progress indicator
+const CompactProgress = ({ workflow, currentStatus, type }) => {
+    const currentIndex = workflow.indexOf(currentStatus);
+    const progress = ((currentIndex + 1) / workflow.length) * 100;
+    
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ 
+                width: 60, 
+                height: 4, 
+                background: 'var(--border)', 
+                borderRadius: 2,
+                overflow: 'hidden'
+            }}>
+                <div style={{
+                    width: `${progress}%`,
+                    height: '100%',
+                    background: type === 'pickup' ? '#10B981' : '#3B82F6',
+                    transition: 'width 0.3s ease'
+                }} />
+            </div>
+            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+                {currentIndex + 1}/{workflow.length}
+            </span>
+        </div>
+    );
+};
+
+// Scheduling component
+const OrderScheduling = ({ order, schedule, onUpdateSchedule }) => {
+    const isPickup = order.deliveryType === 'pickup';
+    const currentStatus = order.orderStatus;
+    
+    const canSchedule = (isPickup && currentStatus === 'confirmed') || 
+                       (!isPickup && currentStatus === 'confirmed');
+    
+    if (!canSchedule) return null;
+    
+    return (
+        <div style={{ 
+            background: 'var(--bg-card2)', 
+            borderRadius: 8, 
+            padding: 12, 
+            marginTop: 12 
+        }}>
+            <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 8, fontWeight: 600 }}>
+                {isPickup ? '📅 Ready Time' : '🚚 Delivery Schedule'}
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
+                    type={isPickup ? 'time' : 'datetime-local'}
+                    value={schedule || ''}
+                    onChange={(e) => onUpdateSchedule(order._id, e.target.value)}
+                    style={{
+                        background: 'var(--bg)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--text)',
+                        borderRadius: 6,
+                        padding: '6px 10px',
+                        fontSize: 12,
+                        flex: 1
+                    }}
+                />
+                {schedule && (
+                    <span style={{ fontSize: 11, color: 'var(--success)', fontWeight: 600 }}>
+                        {isPickup ? 'Ready by' : 'Deliver by'} {new Date(schedule).toLocaleString('en-IN', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            ...(isPickup ? {} : { day: 'numeric', month: 'short' })
+                        })}
+                    </span>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// Enhanced Action buttons component with new state management system
+const ActionButtons = ({ order, onUpdateStatus, onGeneratePickupCode, onCancelOrder, onContactCustomer }) => {
+    const { user } = useApp();
+    const currentStatus = order.orderStatus;
+    const orderType = order.deliveryType === 'pickup' ? ORDER_TYPES.PICKUP : ORDER_TYPES.DELIVERY;
+    const userRole = user?.role?.toUpperCase();
+    
+    // Get available actions based on current state and user role
+    const availableActions = OrderStateValidator.getAvailableActions(orderType, currentStatus, userRole);
+    
+    // Separate primary and secondary actions
+    const primaryActions = availableActions.filter(action => action.type === 'primary');
+    const secondaryActions = availableActions.filter(action => action.type === 'secondary');
+    const dangerActions = availableActions.filter(action => action.type === 'danger');
+    
+    // Add contact customer action for all non-completed orders
+    const allSecondaryActions = [...secondaryActions];
+    if (!OrderStateValidator.isTerminalState(currentStatus)) {
+        allSecondaryActions.push({
+            id: 'contact',
+            label: 'Contact Customer',
+            action: 'contact',
+            type: 'secondary',
+            icon: '📞',
+            roles: ['SELLER', 'CUSTOMER']
+        });
+    }
+
+    const getButtonStyle = (type) => {
+        switch (type) {
+            case 'primary':
+                return {
+                    background: 'var(--primary)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '10px 16px',
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    minWidth: 'fit-content',
+                    boxShadow: '0 2px 4px rgba(108, 61, 225, 0.2)'
+                };
+            case 'secondary':
+                return {
+                    background: 'var(--bg-card2)',
+                    color: 'var(--text)',
+                    border: '1px solid var(--border)',
+                    padding: '10px 16px',
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    minWidth: 'fit-content'
+                };
+            case 'danger':
+                return {
+                    background: 'var(--danger)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '10px 16px',
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    minWidth: 'fit-content'
+                };
+            default:
+                return {};
+        }
+    };
+
+    const handleActionClick = async (action) => {
+        try {
+            switch (action.id) {
+                case 'generate_code':
+                    await onGeneratePickupCode(order._id);
+                    break;
+                case 'cancel':
+                    if (action.requiresConfirmation) {
+                        const confirmMessage = `Are you sure you want to cancel this order? This action cannot be undone.`;
+                        if (!window.confirm(confirmMessage)) {
+                            return;
+                        }
+                    }
+                    await onCancelOrder(order._id);
+                    break;
+                case 'contact':
+                    onContactCustomer(order);
+                    break;
+                default:
+                    if (action.targetState) {
+                        // Validate transition before executing
+                        const validation = OrderStateValidator.validateTransition(
+                            orderType, 
+                            currentStatus, 
+                            action.targetState, 
+                            userRole
+                        );
+                        
+                        if (!validation.isValid) {
+                            alert(`Invalid action: ${validation.errors.join(', ')}`);
+                            return;
+                        }
+                        
+                        await onUpdateStatus(order._id, action.targetState);
+                    }
+            }
+        } catch (error) {
+            console.error('Action failed:', error);
+            alert(`Action failed: ${error.message}`);
+        }
+    };
+
+    // Show completed state for terminal states
+    if (OrderStateValidator.isTerminalState(currentStatus)) {
+        const stateMetadata = OrderUIHelpers.getStateMetadata(currentStatus);
+        return (
+            <div style={{ marginTop: 20 }}>
+                <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 8, 
+                    marginBottom: 12 
+                }}>
+                    <div style={{ 
+                        width: 4, 
+                        height: 16, 
+                        background: stateMetadata.color, 
+                        borderRadius: 2 
+                    }} />
+                    <h4 style={{ 
+                        fontSize: 14, 
+                        fontWeight: 700, 
+                        color: 'var(--text)', 
+                        margin: 0 
+                    }}>
+                        Order Status
+                    </h4>
+                </div>
+                
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '12px 16px',
+                    background: stateMetadata.bgColor,
+                    border: `1px solid ${stateMetadata.color}20`,
+                    borderRadius: 8
+                }}>
+                    <span style={{ fontSize: 16 }}>{stateMetadata.icon}</span>
+                    <span style={{ 
+                        fontSize: 13, 
+                        fontWeight: 600, 
+                        color: stateMetadata.color 
+                    }}>
+                        {stateMetadata.label}
+                    </span>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div style={{ marginTop: 20 }}>
+            {/* Actions Header */}
+            <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 8, 
+                marginBottom: 12 
+            }}>
+                <div style={{ 
+                    width: 4, 
+                    height: 16, 
+                    background: 'var(--primary)', 
+                    borderRadius: 2 
+                }} />
+                <h4 style={{ 
+                    fontSize: 14, 
+                    fontWeight: 700, 
+                    color: 'var(--text)', 
+                    margin: 0 
+                }}>
+                    Available Actions
+                </h4>
+            </div>
+
+            {/* Primary Actions */}
+            {primaryActions.length > 0 && (
+                <div style={{ 
+                    display: 'flex', 
+                    gap: 8, 
+                    marginBottom: 12, 
+                    flexWrap: 'wrap' 
+                }}>
+                    {primaryActions.map(action => (
+                        <button
+                            key={action.id}
+                            onClick={() => handleActionClick(action)}
+                            style={getButtonStyle(action.type)}
+                            onMouseEnter={(e) => {
+                                if (action.type === 'primary') {
+                                    e.target.style.transform = 'translateY(-1px)';
+                                    e.target.style.boxShadow = '0 4px 8px rgba(108, 61, 225, 0.3)';
+                                }
+                            }}
+                            onMouseLeave={(e) => {
+                                if (action.type === 'primary') {
+                                    e.target.style.transform = 'translateY(0)';
+                                    e.target.style.boxShadow = '0 2px 4px rgba(108, 61, 225, 0.2)';
+                                }
+                            }}
+                            title={`Role: ${action.roles.join(', ')}`}
+                        >
+                            <span style={{ marginRight: 6 }}>{action.icon}</span>
+                            {action.label}
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            {/* Secondary Actions */}
+            {allSecondaryActions.length > 0 && (
+                <div style={{ 
+                    display: 'flex', 
+                    gap: 8, 
+                    marginBottom: 12, 
+                    flexWrap: 'wrap' 
+                }}>
+                    {allSecondaryActions.map(action => (
+                        <button
+                            key={action.id}
+                            onClick={() => handleActionClick(action)}
+                            style={getButtonStyle(action.type)}
+                            onMouseEnter={(e) => {
+                                e.target.style.background = action.type === 'danger' ? 
+                                    'rgba(239, 68, 68, 0.9)' : 'var(--bg-card)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.target.style.background = action.type === 'danger' ? 
+                                    'var(--danger)' : 'var(--bg-card2)';
+                            }}
+                            title={action.roles ? `Role: ${action.roles.join(', ')}` : ''}
+                        >
+                            <span style={{ marginRight: 6 }}>{action.icon}</span>
+                            {action.label}
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            {/* Danger Actions */}
+            {dangerActions.length > 0 && (
+                <div style={{ 
+                    display: 'flex', 
+                    gap: 8, 
+                    flexWrap: 'wrap' 
+                }}>
+                    {dangerActions.map(action => (
+                        <button
+                            key={action.id}
+                            onClick={() => handleActionClick(action)}
+                            style={getButtonStyle(action.type)}
+                            title={`Role: ${action.roles.join(', ')}`}
+                        >
+                            <span style={{ marginRight: 6 }}>{action.icon}</span>
+                            {action.label}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// Compact Order Card Component
+const CompactOrderCard = ({ order, isExpanded, onToggle, workflow }) => {
+    const isPickup = order.deliveryType === 'pickup';
+    const isCompleted = order.orderStatus === 'completed';
+    
+    return (
+        <div 
+            style={{
+                background: isCompleted ? 'var(--bg-card2)' : 'var(--bg-card)',
+                border: `1px solid ${isCompleted ? 'var(--border)' : isPickup ? '#10B981' : '#3B82F6'}`,
+                borderLeft: `3px solid ${isCompleted ? 'var(--border)' : isPickup ? '#10B981' : '#3B82F6'}`,
+                borderRadius: 10,
+                padding: '12px 16px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                opacity: isCompleted ? 0.7 : 1
+            }}
+            onClick={() => onToggle(order._id)}
+        >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                {/* Expand/Collapse Icon */}
+                <div style={{ 
+                    fontSize: 12, 
+                    color: 'var(--text-dim)', 
+                    transition: 'transform 0.2s ease',
+                    transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'
+                }}>
+                    ▶
+                </div>
+                
+                {/* Order Icon */}
+                <div style={{ fontSize: 16 }}>
+                    {isPickup ? '📦' : '🚚'}
+                </div>
+                
+                {/* Order Info */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <span style={{ 
+                            fontSize: 11, 
+                            color: 'var(--text-dim)', 
+                            fontFamily: 'monospace',
+                            fontWeight: 600
+                        }}>
+                            #{order._id.slice(-8).toUpperCase()}
+                        </span>
+                        <OrderTypeBadge type={order.deliveryType} />
+                        {statusBadge(order.orderStatus)}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ 
+                            fontSize: 13, 
+                            fontWeight: 600, 
+                            color: 'var(--text)',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                        }}>
+                            {order.customer?.name || 'N/A'}
+                        </span>
+                        <span style={{ 
+                            fontSize: 14, 
+                            fontWeight: 700, 
+                            color: 'var(--primary-light)',
+                            marginLeft: 8
+                        }}>
+                            ₹{order.totalAmount.toLocaleString('en-IN')}
+                        </span>
+                    </div>
+                </div>
+                
+                {/* Compact Progress */}
+                <CompactProgress 
+                    workflow={workflow} 
+                    currentStatus={order.orderStatus} 
+                    type={order.deliveryType} 
+                />
+            </div>
+        </div>
+    );
 };
 
 export default function SellerDashboard() {
     const { user, showToast } = useApp();
     const navigate = useNavigate();
-    const [section, setSection] = useState('dashboard');
-    const [shop, setShop] = useState(null);
-    const [products, setProducts] = useState([]);
     const [orders, setOrders] = useState([]);
+    const [products, setProducts] = useState([]);
     const [reviews, setReviews] = useState([]);
+    const [shop, setShop] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState('orders');
+    const [orderFilter, setOrderFilter] = useState('all');
+    const [expandedOrders, setExpandedOrders] = useState(new Set());
+    const [orderSchedules, setOrderSchedules] = useState({});
+    
+    // Initialize OrderStateManager
+    const [orderStateManager] = useState(() => {
+        const apiClient = {
+            get: (url) => fetch(`${API}${url}`, { headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user?.token}` }}),
+            put: (url, data) => fetch(`${API}${url}`, { 
+                method: 'PUT', 
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user?.token}` },
+                body: JSON.stringify(data)
+            })
+        };
+        return new OrderStateManager(apiClient);
+    });
 
     // Product form
     const [showProductForm, setShowProductForm] = useState(false);
@@ -83,6 +695,17 @@ export default function SellerDashboard() {
         if (!user || user.role !== 'seller') { navigate('/seller/signup'); return; }
         fetchAll();
     }, [user, navigate, fetchAll]);
+
+    // Real-time polling for order updates
+    useEffect(() => {
+        if (!user || user.role !== 'seller') return;
+
+        const pollInterval = setInterval(() => {
+            fetchAll();
+        }, 30000); // Poll every 30 seconds
+
+        return () => clearInterval(pollInterval);
+    }, [user, fetchAll]);
 
     const handleProductSubmit = async (e) => {
         e.preventDefault();
@@ -172,13 +795,117 @@ export default function SellerDashboard() {
         setShowProductForm(true);
     };
 
-    const handleUpdateStatus = async (orderId, status) => {
+    const handleUpdateStatus = async (orderId, newStatus) => {
         try {
-            const res = await fetch(`${API}/orders/${orderId}/status`, { method: 'PUT', headers: headers(), body: JSON.stringify({ status }) });
-            if (!res.ok) throw new Error('Failed to update');
-            showToast('Order status updated!');
+            const order = orders.find(o => o._id === orderId);
+            if (!order) {
+                throw new Error('Order not found');
+            }
+            
+            const orderType = order.deliveryType === 'pickup' ? ORDER_TYPES.PICKUP : ORDER_TYPES.DELIVERY;
+            const currentStatus = order.orderStatus;
+            const userRole = user?.role?.toUpperCase();
+            
+            // Execute transition using OrderStateManager
+            await orderStateManager.executeTransition(
+                orderId, 
+                orderType, 
+                currentStatus, 
+                newStatus, 
+                userRole
+            );
+            
+            showToast('Order status updated successfully!');
             fetchAll();
-        } catch (err) { showToast(err.message, 'error'); }
+        } catch (err) { 
+            showToast(err.message, 'error'); 
+        }
+    };
+
+    const toggleOrderExpansion = (orderId) => {
+        setExpandedOrders(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(orderId)) {
+                newSet.delete(orderId);
+            } else {
+                newSet.add(orderId);
+            }
+            return newSet;
+        });
+    };
+
+    const updateOrderSchedule = (orderId, schedule) => {
+        setOrderSchedules(prev => ({
+            ...prev,
+            [orderId]: schedule
+        }));
+    };
+
+    const generatePickupCode = async (orderId) => {
+        try {
+            await orderStateManager.generatePickupCode(orderId);
+            showToast('Pickup code generated successfully!');
+            fetchAll();
+        } catch (err) { 
+            showToast(err.message, 'error'); 
+        }
+    };
+
+    const handleCancelOrder = async (orderId) => {
+        if (!window.confirm('Are you sure you want to cancel this order? This action cannot be undone.')) {
+            return;
+        }
+        
+        try {
+            await orderStateManager.cancelOrder(orderId);
+            showToast('Order cancelled successfully!');
+            fetchAll();
+        } catch (err) { 
+            showToast(err.message, 'error'); 
+        }
+    };
+
+    const handleContactCustomer = (order) => {
+        const customerEmail = order.customer?.email;
+        const customerPhone = order.delivery_phone || order.customer?.phone;
+        const orderId = order._id.slice(-8).toUpperCase();
+        
+        if (!customerEmail && !customerPhone) {
+            showToast('Customer contact information not available', 'error');
+            return;
+        }
+        
+        let contactInfo = `Order #${orderId}\n`;
+        contactInfo += `Customer: ${order.customer?.name || 'N/A'}\n`;
+        
+        if (customerEmail) {
+            contactInfo += `Email: ${customerEmail}`;
+        }
+        if (customerPhone) {
+            contactInfo += `${customerEmail ? '\n' : ''}Phone: ${customerPhone}`;
+        }
+        
+        // Create a modal-like dialog with contact options
+        const contactOptions = [];
+        
+        if (customerEmail) {
+            contactOptions.push(`📧 Email: ${customerEmail}`);
+        }
+        
+        if (customerPhone) {
+            contactOptions.push(`📱 Phone: ${customerPhone}`);
+        }
+        
+        const message = `Contact Information for Order #${orderId}\n\n${contactOptions.join('\n')}\n\nClick OK to copy contact details to clipboard.`;
+        
+        if (window.confirm(message)) {
+            const clipboardText = contactOptions.join('\n');
+            navigator.clipboard.writeText(clipboardText).then(() => {
+                showToast('Contact details copied to clipboard!');
+            }).catch(() => {
+                showToast('Failed to copy to clipboard', 'error');
+            });
+        }
     };
 
     const handleShopUpdate = async (e) => {
@@ -199,6 +926,11 @@ export default function SellerDashboard() {
     const totalRevenue = orders.filter(o => o.orderStatus === 'delivered' || o.orderStatus === 'picked_up').reduce((sum, o) => sum + o.totalAmount, 0);
     const pendingOrders = orders.filter(o => o.orderStatus === 'pending').length;
     const totalOrders = orders.length;
+    
+    // Filter orders based on selected filter
+    const filteredOrders = orderFilter === 'all' ? orders : 
+                          orderFilter === 'pickup' ? orders.filter(o => o.deliveryType === 'pickup') :
+                          orders.filter(o => o.deliveryType === 'delivery');
 
     const navItems = [
         { id: 'dashboard', label: 'Dashboard', icon: '📊' },
@@ -222,12 +954,12 @@ export default function SellerDashboard() {
 
                 <div style={{ padding: '16px 12px', flex: 1, overflowY: 'auto' }}>
                     {navItems.map(item => (
-                        <button key={item.id} onClick={() => setSection(item.id)}
+                        <button key={item.id} onClick={() => setActiveTab(item.id)}
                             style={{
                                 width: '100%', textAlign: 'left', padding: '12px 16px',
                                 borderRadius: 10, marginBottom: 4, border: 'none', cursor: 'pointer',
-                                background: section === item.id ? 'linear-gradient(135deg,#6C3DE1,#8B5CF6)' : 'transparent',
-                                color: section === item.id ? 'white' : 'var(--text-muted)',
+                                background: activeTab === item.id ? 'linear-gradient(135deg,#6C3DE1,#8B5CF6)' : 'transparent',
+                                color: activeTab === item.id ? 'white' : 'var(--text-muted)',
                                 display: 'flex', alignItems: 'center', gap: 12, fontSize: 14, fontWeight: 600,
                                 transition: 'all 0.15s ease'
                             }}>
@@ -257,7 +989,7 @@ export default function SellerDashboard() {
             <div style={{ marginLeft: 260, flex: 1, padding: 36, overflowY: 'auto' }}>
 
                 {/* DASHBOARD */}
-                {section === 'dashboard' && (
+                {activeTab === 'dashboard' && (
                     <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 36 }}>
                             <div>
@@ -304,7 +1036,21 @@ export default function SellerDashboard() {
                                             <tr key={o._id} style={{ borderBottom: '1px solid var(--border)' }}>
                                                 <td style={{ padding: '14px 20px', fontSize: 13, fontFamily: 'monospace', color: 'var(--text-dim)' }}>{o._id.slice(-8).toUpperCase()}</td>
                                                 <td style={{ padding: '14px 20px', fontSize: 14, fontWeight: 600 }}>{o.customer?.name || 'N/A'}</td>
-                                                <td style={{ padding: '14px 20px', fontSize: 13 }}>{o.deliveryType === 'delivery' ? '🚚 Delivery' : '📦 Pickup'}</td>
+                                                <td style={{ padding: '14px 20px', fontSize: 13 }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                        {o.deliveryType === 'delivery' ? (
+                                                            <>
+                                                                🚚
+                                                                <span style={{ color: '#3B82F6', fontWeight: 600 }}>Delivery</span>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                📦
+                                                                <span style={{ color: '#10B981', fontWeight: 600 }}>Pickup</span>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </td>
                                                 <td style={{ padding: '14px 20px', fontSize: 14, fontWeight: 700, color: 'var(--primary-light)' }}>₹{o.totalAmount.toLocaleString('en-IN')}</td>
                                                 <td style={{ padding: '14px 20px' }}>{statusBadge(o.orderStatus)}</td>
                                             </tr>
@@ -317,7 +1063,7 @@ export default function SellerDashboard() {
                 )}
 
                 {/* PRODUCTS */}
-                {section === 'products' && (
+                {activeTab === 'products' && (
                     <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
                             <div>
@@ -528,57 +1274,189 @@ export default function SellerDashboard() {
                 )}
 
                 {/* ORDERS */}
-                {section === 'orders' && (
+                {activeTab === 'orders' && (
                     <div>
-                        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>Orders</h1>
-                        <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 28 }}>{totalOrders} total orders · {pendingOrders} pending</p>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
+                            <div>
+                                <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>Orders</h1>
+                                <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>{totalOrders} total orders · {pendingOrders} pending</p>
+                            </div>
+                        </div>
 
-                        {orders.length === 0 ? (
-                            <div className="empty-state"><div className="icon">🛍️</div><h3>No orders yet</h3><p>Orders from customers will appear here.</p></div>
+                        {/* Filter Tabs */}
+                        <div style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid var(--border)', paddingBottom: 16 }}>
+                            {[
+                                { id: 'all', label: 'All Orders', count: orders.length },
+                                { id: 'pickup', label: 'Pickup', count: orders.filter(o => o.deliveryType === 'pickup').length },
+                                { id: 'delivery', label: 'Delivery', count: orders.filter(o => o.deliveryType === 'delivery').length }
+                            ].map(filter => (
+                                <button
+                                    key={filter.id}
+                                    onClick={() => setOrderFilter(filter.id)}
+                                    style={{
+                                        background: orderFilter === filter.id ? 'var(--primary)' : 'transparent',
+                                        color: orderFilter === filter.id ? 'white' : 'var(--text-muted)',
+                                        border: 'none',
+                                        padding: '8px 16px',
+                                        borderRadius: 8,
+                                        fontSize: 14,
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s ease',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 8
+                                    }}
+                                >
+                                    {filter.label}
+                                    <span style={{
+                                        background: orderFilter === filter.id ? 'rgba(255,255,255,0.2)' : 'var(--bg-card2)',
+                                        padding: '2px 6px',
+                                        borderRadius: 10,
+                                        fontSize: 12,
+                                        minWidth: 20,
+                                        textAlign: 'center'
+                                    }}>
+                                        {filter.count}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+
+                        {filteredOrders.length === 0 ? (
+                            <div className="empty-state" style={{ padding: 60 }}>
+                                <div className="icon">🛍️</div>
+                                <h3>No orders found</h3>
+                                <p>
+                                    {orderFilter === 'all' ? 'Orders from customers will appear here.' : 
+                                     orderFilter === 'pickup' ? 'No pickup orders found.' : 
+                                     'No delivery orders found.'}
+                                </p>
+                            </div>
                         ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                                {orders.map(o => {
-                                    const statuses = o.delivery_type === 'home_delivery' ? DELIVERY_STATUSES : PICKUP_STATUSES;
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                {filteredOrders.map(o => {
+                                    const isPickup = o.deliveryType === 'pickup';
+                                    const workflow = isPickup ? PICKUP_WORKFLOW : DELIVERY_WORKFLOW;
+                                    const isCompleted = o.orderStatus === 'completed';
+                                    const isExpanded = expandedOrders.has(o._id);
+                                    
                                     return (
-                                        <div key={o._id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: 24 }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
-                                                <div>
-                                                    <p style={{ fontSize: 12, color: 'var(--text-dim)', fontFamily: 'monospace', marginBottom: 4 }}>#{o._id.slice(-8).toUpperCase()}</p>
-                                                    <p style={{ fontWeight: 700, marginBottom: 4 }}>{o.customer?.name || 'N/A'} · {o.customer?.email}</p>
-                                                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                                        <span style={{ fontSize: 12 }}>{o.deliveryType === 'delivery' ? '🚚 Home Delivery' : '📦 Shop Pickup'}</span>
-                                                        {o.pickupCode && <span className="badge badge-success" style={{ fontSize: 11 }}>Code: {o.pickupCode}</span>}
-                                                    </div>
-                                                </div>
-                                                <div style={{ textAlign: 'right' }}>
-                                                    <p style={{ fontSize: 20, fontWeight: 800, color: 'var(--primary-light)' }}>₹{o.totalAmount.toLocaleString('en-IN')}</p>
-                                                    <p style={{ fontSize: 12, color: 'var(--text-dim)' }}>{new Date(o.createdAt).toLocaleDateString('en-IN')}</p>
-                                                </div>
-                                            </div>
+                                        <div key={o._id}>
+                                            {/* Compact Card */}
+                                            <CompactOrderCard 
+                                                order={o}
+                                                isExpanded={isExpanded}
+                                                onToggle={toggleOrderExpansion}
+                                                workflow={workflow}
+                                            />
+                                            
+                                            {/* Expanded Content */}
+                                            {isExpanded && (
+                                                <div style={{
+                                                    background: 'var(--bg-card)',
+                                                    border: `1px solid ${isPickup ? '#10B981' : '#3B82F6'}`,
+                                                    borderTop: 'none',
+                                                    borderRadius: '0 0 10px 10px',
+                                                    padding: '20px 16px',
+                                                    marginTop: -2,
+                                                    animation: 'slideDown 0.3s ease'
+                                                }}>
+                                                    {/* Full Progress Tracker */}
+                                                    <ProgressTracker 
+                                                        order={o}
+                                                    />
 
-                                            {/* Items */}
-                                            <div style={{ background: 'var(--bg-card2)', borderRadius: 10, padding: '12px 16px', marginBottom: 16 }}>
-                                                {o.items?.map((item, i) => (
-                                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0' }}>
-                                                        <span style={{ color: 'var(--text-muted)' }}>{item.name} × {item.quantity}</span>
-                                                        <span style={{ fontWeight: 600 }}>₹{(item.price * item.quantity).toLocaleString('en-IN')}</span>
+                                                    {/* Order Details Header */}
+                                                    <div style={{ 
+                                                        display: 'flex', 
+                                                        justifyContent: 'space-between', 
+                                                        alignItems: 'flex-start', 
+                                                        marginBottom: 16,
+                                                        paddingTop: 16,
+                                                        borderTop: '1px solid var(--border)'
+                                                    }}>
+                                                        <div>
+                                                            <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 4 }}>
+                                                                Customer: {o.customer?.email || 'N/A'}
+                                                            </p>
+                                                            <p style={{ fontSize: 12, color: 'var(--text-dim)' }}>
+                                                                Order Date: {new Date(o.createdAt).toLocaleDateString('en-IN')}
+                                                            </p>
+                                                        </div>
+                                                        <div style={{ textAlign: 'right' }}>
+                                                            <p style={{ fontSize: 18, fontWeight: 800, color: 'var(--primary-light)' }}>
+                                                                ₹{o.totalAmount.toLocaleString('en-IN')}
+                                                            </p>
+                                                        </div>
                                                     </div>
-                                                ))}
-                                            </div>
 
-                                            {/* Status update */}
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                                                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Status:</span>
-                                                {statusBadge(o.orderStatus)}
-                                                <div style={{ marginLeft: 'auto' }}>
-                                                    <select
-                                                        value={o.orderStatus}
-                                                        onChange={e => handleUpdateStatus(o._id, e.target.value)}
-                                                        style={{ background: 'var(--bg-card2)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 8, padding: '8px 14px', fontSize: 13, cursor: 'pointer', width: 'auto', textTransform: 'capitalize' }}>
-                                                        {statuses.map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
-                                                    </select>
+                                                    {/* Dynamic Content Based on Order Type */}
+                                                    <div style={{ background: 'var(--bg)', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+                                                        {isPickup ? (
+                                                            <div style={{ textAlign: 'center' }}>
+                                                                <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 8, fontWeight: 600, textTransform: 'uppercase' }}>Pickup Code</div>
+                                                                <div style={{ 
+                                                                    fontSize: 28, 
+                                                                    fontWeight: 900, 
+                                                                    color: '#10B981', 
+                                                                    letterSpacing: 4,
+                                                                    fontFamily: 'monospace',
+                                                                    marginBottom: 4
+                                                                }}>
+                                                                    {o.pickupCode || 'N/A'}
+                                                                </div>
+                                                                <p style={{ fontSize: 11, color: 'var(--text-dim)' }}>Show this code to the shop owner</p>
+                                                            </div>
+                                                        ) : (
+                                                            <div>
+                                                                <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 8, fontWeight: 600, textTransform: 'uppercase' }}>Delivery Address</div>
+                                                                <p style={{ fontSize: 13, lineHeight: 1.5 }}>
+                                                                    {o.delivery_address && (
+                                                                        <>
+                                                                            {o.delivery_name && <><strong>{o.delivery_name}</strong><br /></>}
+                                                                            {o.delivery_address}<br />
+                                                                            {o.delivery_city && `${o.delivery_city}, `}
+                                                                            {o.delivery_pincode}
+                                                                            {o.delivery_phone && <><br />📱 {o.delivery_phone}</>}
+                                                                        </>
+                                                                    )}
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Items */}
+                                                    <div style={{ background: 'var(--bg-card2)', borderRadius: 10, padding: '12px 16px', marginBottom: 16 }}>
+                                                        <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 8, fontWeight: 600, textTransform: 'uppercase' }}>Order Items</div>
+                                                        {o.items?.map((item, i) => (
+                                                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0' }}>
+                                                                <span style={{ color: 'var(--text-muted)' }}>
+                                                                    {item.name} × {item.quantity}
+                                                                    {item.color && <span style={{ color: 'var(--text-dim)', marginLeft: 8 }}>({item.color})</span>}
+                                                                </span>
+                                                                <span style={{ fontWeight: 600 }}>₹{(item.price * item.quantity).toLocaleString('en-IN')}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+
+                                                    {/* Scheduling */}
+                                                    <OrderScheduling 
+                                                        order={o}
+                                                        schedule={orderSchedules[o._id]}
+                                                        onUpdateSchedule={updateOrderSchedule}
+                                                    />
+
+                                                    {/* Action Buttons */}
+                                                    <ActionButtons 
+                                                        order={o} 
+                                                        onUpdateStatus={handleUpdateStatus}
+                                                        onGeneratePickupCode={generatePickupCode}
+                                                        onCancelOrder={handleCancelOrder}
+                                                        onContactCustomer={handleContactCustomer}
+                                                    />
                                                 </div>
-                                            </div>
+                                            )}
                                         </div>
                                     );
                                 })}
@@ -588,7 +1466,7 @@ export default function SellerDashboard() {
                 )}
 
                 {/* REVIEWS */}
-                {section === 'reviews' && (
+                {activeTab === 'reviews' && (
                     <div>
                         <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>Reviews</h1>
                         <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 28 }}>
@@ -605,7 +1483,7 @@ export default function SellerDashboard() {
                 )}
 
                 {/* SETTINGS */}
-                {section === 'settings' && (
+                {activeTab === 'settings' && (
                     <div>
                         <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 28 }}>Shop Settings</h1>
                         <form onSubmit={handleShopUpdate} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 20, padding: 32, maxWidth: 700 }}>

@@ -132,12 +132,49 @@ const updateOrderStatus = async (req, res) => {
         const shop = await Shop.findOne({ owner: req.user._id });
         if (!shop) return res.status(404).json({ message: 'No shop found' });
 
-        const order = await Order.findOneAndUpdate(
-            { _id: req.params.id, shop: shop._id },
-            { orderStatus: req.body.status },
-            { new: true }
-        );
+        const order = await Order.findOne({ _id: req.params.id, shop: shop._id });
         if (!order) return res.status(404).json({ message: 'Order not found or access denied' });
+
+        const { status } = req.body;
+        if (!status) {
+            return res.status(400).json({ message: 'Status is required' });
+        }
+
+        // Validate state transitions
+        const currentStatus = order.orderStatus;
+        const deliveryType = order.deliveryType;
+        
+        // Define valid transitions
+        const validTransitions = {
+            'pickup': {
+                'pending': ['confirmed', 'cancelled'],
+                'confirmed': ['ready_for_pickup', 'cancelled'],
+                'ready_for_pickup': ['picked_up', 'cancelled'],
+                'picked_up': ['completed'],
+                'completed': [],
+                'cancelled': []
+            },
+            'delivery': {
+                'pending': ['confirmed', 'cancelled'],
+                'confirmed': ['out_for_delivery', 'cancelled'],
+                'out_for_delivery': ['delivered', 'cancelled'],
+                'delivered': ['completed'],
+                'completed': [],
+                'cancelled': []
+            }
+        };
+
+        const allowedTransitions = validTransitions[deliveryType]?.[currentStatus] || [];
+        if (!allowedTransitions.includes(status)) {
+            return res.status(400).json({ 
+                message: `Invalid status transition from ${currentStatus} to ${status} for ${deliveryType} order` 
+            });
+        }
+
+        // Update the order status
+        order.orderStatus = status;
+        await order.save();
+
         res.json(order);
     } catch (err) {
         res.status(500).json({ message: err.message });

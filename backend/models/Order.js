@@ -18,7 +18,7 @@ const orderSchema = new mongoose.Schema({
     deliveryType: { type: String, enum: ['delivery', 'pickup'], required: true },
     orderStatus: {
         type: String,
-        enum: ['pending', 'confirmed', 'packed', 'ready_for_pickup', 'picked_up', 'delivered'],
+        enum: ['pending', 'confirmed', 'ready_for_pickup', 'picked_up', 'out_for_delivery', 'delivered', 'completed', 'cancelled'],
         default: 'pending'
     },
     totalAmount: { type: Number, required: true },
