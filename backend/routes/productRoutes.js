@@ -10,7 +10,7 @@ const { protect, sellerOnly } = require('../middleware/authMiddleware');
 const multer = require('multer');
 const { storage } = require('../config/cloudinary');
 
-// Storage configuration moved to config/cloudinary.js
+// Cloudinary Storage configuration
 
 const fileFilter = (req, file, cb) => {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
