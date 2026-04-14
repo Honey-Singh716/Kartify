@@ -97,7 +97,7 @@ export default function SellerSignup() {
     };
 
     return (
-        <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+        <div className="page" style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
             <div style={{ width: '100%', maxWidth: 680 }}>
                 {/* Logo */}
                 <div style={{ textAlign: 'center', marginBottom: 40 }}>

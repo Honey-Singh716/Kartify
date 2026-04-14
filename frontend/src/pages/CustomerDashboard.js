@@ -466,11 +466,11 @@ export default function CustomerDashboard() {
     );
 
     return (
-        <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+        <div className="page" style={{ minHeight: '100vh', background: 'var(--bg)' }}>
             {/* Header */}
             <div style={{
                 background: 'linear-gradient(135deg, #10B981 0%, #34D399 100%)',
-                padding: '40px 20px 60px',
+                padding: '20px 20px 60px',
                 textAlign: 'center'
             }}>
                 <h1 style={{

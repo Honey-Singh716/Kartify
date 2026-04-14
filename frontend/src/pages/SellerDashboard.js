@@ -972,9 +972,9 @@ export default function SellerDashboard() {
     ];
 
     return (
-        <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', paddingTop: 70 }}>
+        <div className="page" style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex' }}>
             {/* Sidebar */}
-            <div style={{ width: 260, background: 'var(--bg-card)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', position: 'fixed', top: 70, left: 0, bottom: 0, zIndex: 10 }}>
+            <div style={{ width: 260, background: 'var(--bg-card)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', position: 'fixed', top: 80, left: 0, bottom: 0, zIndex: 10 }}>
                 <div style={{ padding: '28px 24px 20px', borderBottom: '1px solid var(--border)' }}>
                     <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,#6C3DE1,#8B5CF6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 900, color: '#fff' }}>K</div>
