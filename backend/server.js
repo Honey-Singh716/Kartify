@@ -24,7 +24,7 @@ try {
 const app = express();
 
 // Trust Proxy for Production (Render/Vercel)
-app.set('trust proxy', 1);
+app.set('trust proxy', true);
 
 // Security & Optimization Middleware (Conditional)
 if (helmet) app.use(helmet());
@@ -38,13 +38,19 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-// Rate Limiting
-const { apiLimiter, loginLimiter } = require('./middleware/rateLimiter');
-app.use('/api/', apiLimiter);
-app.use('/api/auth/login', loginLimiter);
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Rate Limiting
+const { apiLimiter, loginLimiter } = require('./middleware/rateLimiter');
+// Specific limiter for login
+app.use('/api/auth/login', loginLimiter);
+// General limiter for other API routes
+app.use('/api/', (req, res, next) => {
+  // Skip general API limit for login since it has its own strict limit
+  if (req.path === '/auth/login') return next();
+  apiLimiter(req, res, next);
+});
 
 // Request logging middleware
 app.use((req, res, next) => {

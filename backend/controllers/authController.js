@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
+const { loginLimiter } = require('../middleware/rateLimiter');
 
 const generateToken = (id) => {
     const secret = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? null : 'kartify_secret_key');
@@ -43,8 +44,7 @@ const loginUser = async (req, res) => {
         }
 
         // Reset rate limit on successful login
-        const { loginLimiter } = require('../middleware/rateLimiter');
-        if (loginLimiter && loginLimiter.resetKey) {
+        if (loginLimiter && typeof loginLimiter.resetKey === 'function') {
             const key = email ? `${req.ip}-${email}` : req.ip;
             loginLimiter.resetKey(key);
         }
