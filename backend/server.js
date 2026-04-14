@@ -13,7 +13,7 @@ try {
   logger = require('./utils/logger');
 } catch (e) {
   // In development, handle missing optional packages gracefully
-  console.warn("⚠️ Production middleware (helmet, express-rate-limit, compression, winston) not found. Using fallback logging.");
+  console.warn("Production middleware (helmet, express-rate-limit, compression, winston) not found. Using fallback logging.");
   logger = {
     info: (msg) => console.log(`[${new Date().toLocaleTimeString()}] INFO: ${msg}`),
     error: (msg, err) => console.error(`[${new Date().toLocaleTimeString()}] ERROR: ${msg}`, err || ''),
@@ -40,6 +40,7 @@ app.use(cors(corsOptions));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Rate Limiting
 const { apiLimiter, loginLimiter } = require('./middleware/rateLimiter');
