@@ -41,6 +41,14 @@ const loginUser = async (req, res) => {
         if (!user || !(await user.matchPassword(password))) {
             return res.status(401).json({ message: 'Invalid email or password' });
         }
+
+        // Reset rate limit on successful login
+        const { loginLimiter } = require('../middleware/rateLimiter');
+        if (loginLimiter && loginLimiter.resetKey) {
+            const key = email ? `${req.ip}-${email}` : req.ip;
+            loginLimiter.resetKey(key);
+        }
+
         res.json({
             _id: user._id,
             name: user.name,

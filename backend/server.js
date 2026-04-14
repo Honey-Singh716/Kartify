@@ -35,15 +35,10 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-// Rate Limiting (Conditional)
-if (rateLimit) {
-  const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
-    message: { message: 'Too many requests from this IP, please try again after 15 minutes' }
-  });
-  app.use('/api/', limiter);
-}
+// Rate Limiting
+const { apiLimiter, loginLimiter } = require('./middleware/rateLimiter');
+app.use('/api/', apiLimiter);
+app.use('/api/auth/login', loginLimiter);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

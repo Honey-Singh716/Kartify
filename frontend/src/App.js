@@ -237,11 +237,20 @@ const AuthModal = () => {
     const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' });
     const [role, setRole] = useState('customer');
     const [loading, setLoading] = useState(false);
+    const [cooldown, setCooldown] = useState(0);
+
+    useEffect(() => {
+        if (cooldown > 0) {
+            const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [cooldown]);
 
     if (!showAuth) return null;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (cooldown > 0) return;
         setLoading(true);
         try {
             const endpoint = authMode === 'login' ? '/auth/login' : '/auth/register';
@@ -253,6 +262,14 @@ const AuthModal = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
+
+            if (res.status === 429) {
+                const data = await res.json();
+                setCooldown(60); // Default to 60 seconds or use retryAfter from server
+                showToast(data.message || 'Too many attempts. Please wait.', 'error');
+                return;
+            }
+
             const data = await res.json();
             if (!res.ok) throw new Error(data.message);
             login(data);
@@ -315,8 +332,8 @@ const AuthModal = () => {
                         <label>Password</label>
                         <input required type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="••••••••" />
                     </div>
-                    <button className="btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 8 }} disabled={loading}>
-                        {loading ? 'Please wait...' : authMode === 'login' ? 'Sign In' : 'Create Account'}
+                    <button className="btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 8 }} disabled={loading || cooldown > 0}>
+                        {loading ? 'Please wait...' : cooldown > 0 ? `Wait ${cooldown}s` : authMode === 'login' ? 'Sign In' : 'Create Account'}
                     </button>
                 </form>
                 <div className="switch-link">
