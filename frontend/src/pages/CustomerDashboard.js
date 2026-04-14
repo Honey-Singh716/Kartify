@@ -442,20 +442,6 @@ export default function CustomerDashboard() {
     }, [user, navigate, fetchOrders]);
 
 
-    // Refetch immediately when the tab becomes visible (instant sync)
-    useEffect(() => {
-        if (!user || user.role !== 'customer') return;
-
-        const handleVisibility = () => {
-            if (document.visibilityState === 'visible') {
-                fetchOrders();
-            }
-        };
-
-        document.addEventListener('visibilitychange', handleVisibility);
-        return () => document.removeEventListener('visibilitychange', handleVisibility);
-    }, [user, fetchOrders]);
-
     // Filter orders
     const filteredOrders = activeFilter === 'all' ? orders :
         activeFilter === 'pickup' ? orders.filter(o => o.deliveryType === ORDER_TYPES.PICKUP) :

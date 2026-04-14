@@ -157,7 +157,7 @@ const updateOrderStatus = async (req, res) => {
         }
 
         // Validate state transitions if status is being changed
-        if (status) {
+        if (status && status !== order.orderStatus) {
             const currentStatus = order.orderStatus;
             const deliveryType = order.deliveryType;
 
@@ -184,7 +184,7 @@ const updateOrderStatus = async (req, res) => {
             const allowedTransitions = validTransitions[deliveryType]?.[currentStatus] || [];
             if (!allowedTransitions.includes(status)) {
                 return res.status(400).json({
-                    message: `Invalid status transition from ${currentStatus} to ${status} for ${deliveryType} order`
+                    message: `Invalid status transition from '${currentStatus}' to '${status}' for a ${deliveryType} order`
                 });
             }
             order.orderStatus = status;
@@ -259,7 +259,7 @@ const updateOrder = async (req, res) => {
         }
 
         // Validate and apply status transition if requested
-        if (status) {
+        if (status && status !== order.orderStatus) {
             const currentStatus = order.orderStatus;
             const deliveryType = order.deliveryType;
 

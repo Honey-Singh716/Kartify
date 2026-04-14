@@ -731,17 +731,6 @@ export default function SellerDashboard() {
         fetchAll();
     }, [user, navigate, fetchAll]);
 
-    // Refetch immediately when the tab becomes visible (instant sync)
-    useEffect(() => {
-        if (!user || user.role !== 'seller') return;
-        const handleVisibility = () => {
-            if (document.visibilityState === 'visible') {
-                fetchAll();
-            }
-        };
-        document.addEventListener('visibilitychange', handleVisibility);
-        return () => document.removeEventListener('visibilitychange', handleVisibility);
-    }, [user, fetchAll]);
 
     const handleProductSubmit = async (e) => {
         e.preventDefault();
@@ -879,6 +868,12 @@ export default function SellerDashboard() {
     };
 
     const generatePickupCode = async (orderId) => {
+        // Find the order in local state
+        const order = orders.find(o => o._id === orderId);
+        if (order && order.orderStatus === 'ready_for_pickup') {
+            showToast('Order is already ready for pickup.');
+            return;
+        }
         try {
             await updateOrder(orderId, { status: 'ready_for_pickup' });
             showToast('Pickup code generated successfully!');
@@ -1465,7 +1460,7 @@ export default function SellerDashboard() {
                                                                             {o.delivery_address}<br />
                                                                             {o.delivery_city && `${o.delivery_city}, `}
                                                                             {o.delivery_pincode}
-                                                                            {o.delivery_phone && <><br />📱 {o.delivery_phone}</>}
+                                                                            {o.delivery_phone && <><br /> {o.delivery_phone}</>}
                                                                         </>
                                                                     )}
                                                                 </p>
@@ -1586,11 +1581,11 @@ export default function SellerDashboard() {
                             <div style={{ display: 'flex', gap: 24, marginBottom: 24 }}>
                                 <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
                                     <input type="checkbox" checked={shopForm.deliveryAvailable || false} onChange={e => setShopForm({ ...shopForm, deliveryAvailable: e.target.checked })} style={{ width: 18, height: 18, accentColor: 'var(--primary)' }} />
-                                    🚚 Home Delivery
+                                    Home Delivery
                                 </label>
                                 <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
                                     <input type="checkbox" checked={shopForm.pickupAvailable || false} onChange={e => setShopForm({ ...shopForm, pickupAvailable: e.target.checked })} style={{ width: 18, height: 18, accentColor: 'var(--primary)' }} />
-                                    📦 Shop Pickup
+                                    Shop Pickup
                                 </label>
                             </div>
                             <div style={{ marginBottom: 24, padding: 20, background: 'var(--bg-card2)', borderRadius: 12 }}>
