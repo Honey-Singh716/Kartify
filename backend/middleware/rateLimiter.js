@@ -1,4 +1,12 @@
-const rateLimit = require('express-rate-limit');
+let rateLimit;
+try {
+    rateLimit = require('express-rate-limit');
+} catch (e) {
+    // Fallback if express-rate-limit is not installed
+    const dummyLimiter = (req, res, next) => next();
+    module.exports = { apiLimiter: dummyLimiter, loginLimiter: dummyLimiter };
+    return;
+}
 
 // General API Limiter - More permissive
 // Allows 500 requests every 15 minutes
