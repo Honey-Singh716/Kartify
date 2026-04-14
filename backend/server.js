@@ -23,6 +23,9 @@ try {
 
 const app = express();
 
+// Trust Proxy for Production (Render/Vercel)
+app.set('trust proxy', 1);
+
 // Security & Optimization Middleware (Conditional)
 if (helmet) app.use(helmet());
 if (compression) app.use(compression());

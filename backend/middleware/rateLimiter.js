@@ -7,6 +7,7 @@ const apiLimiter = rateLimit({
     max: 500,
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => req.method === 'OPTIONS',
     message: {
         message: 'Too many requests from this IP, please try again after 15 minutes'
     }
@@ -19,14 +20,16 @@ const loginLimiter = rateLimit({
     max: 10,
     standardHeaders: true,
     legacyHeaders: false,
+    skip: (req) => req.method === 'OPTIONS',
     // Hybrid key: IP + Email (if available)
     keyGenerator: (req) => {
         return req.body.email ? `${req.ip}-${req.body.email}` : req.ip;
     },
     handler: (req, res, next, options) => {
+        const retryAfter = Math.ceil(options.windowMs / 1000 / 60);
         res.status(options.statusCode).json({
-            message: 'Too many login attempts. Please try again after 15 minutes.',
-            retryAfter: Math.ceil(options.windowMs / 1000 / 60)
+            message: `Too many login attempts. Please try again after ${retryAfter} minutes.`,
+            retryAfter: retryAfter // in minutes
         });
     }
 });

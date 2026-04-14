@@ -250,7 +250,7 @@ const AuthModal = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (cooldown > 0) return;
+        if (loading || cooldown > 0) return; // Prevent duplicate or cooldown clicks
         setLoading(true);
         try {
             const endpoint = authMode === 'login' ? '/auth/login' : '/auth/register';
@@ -265,7 +265,9 @@ const AuthModal = () => {
 
             if (res.status === 429) {
                 const data = await res.json();
-                setCooldown(60); // Default to 60 seconds or use retryAfter from server
+                // If backend provides retryAfter in minutes, convert to seconds
+                const seconds = (data.retryAfter || 1) * 60;
+                setCooldown(seconds);
                 showToast(data.message || 'Too many attempts. Please wait.', 'error');
                 return;
             }
