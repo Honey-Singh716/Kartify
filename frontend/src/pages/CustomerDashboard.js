@@ -441,16 +441,6 @@ export default function CustomerDashboard() {
         fetchOrders();
     }, [user, navigate, fetchOrders]);
 
-    // Real-time polling for order updates (10s)
-    useEffect(() => {
-        if (!user || user.role !== 'customer') return;
-
-        const pollInterval = setInterval(() => {
-            fetchOrders();
-        }, 10000);
-
-        return () => clearInterval(pollInterval);
-    }, [user, fetchOrders]);
 
     // Refetch immediately when the tab becomes visible (instant sync)
     useEffect(() => {
@@ -505,9 +495,30 @@ export default function CustomerDashboard() {
                 }}>
                     My Orders
                 </h1>
-                <p style={{ fontSize: 14, color: 'rgba(255, 255, 255, 0.9)' }}>
+                <p style={{ fontSize: 14, color: 'rgba(255, 255, 255, 0.9)', marginBottom: 20 }}>
                     Track your orders in real-time
                 </p>
+                <button
+                    onClick={fetchOrders}
+                    style={{
+                        background: 'rgba(255, 255, 255, 0.2)',
+                        color: 'white',
+                        border: '1px solid rgba(255, 255, 255, 0.4)',
+                        padding: '8px 20px',
+                        borderRadius: 20,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.3)'}
+                    onMouseLeave={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.2)'}
+                >
+                    🔄 Refresh Orders
+                </button>
             </div>
 
             {/* Main Content */}

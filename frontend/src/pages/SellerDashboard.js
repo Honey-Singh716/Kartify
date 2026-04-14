@@ -731,15 +731,16 @@ export default function SellerDashboard() {
         fetchAll();
     }, [user, navigate, fetchAll]);
 
-    // Real-time polling for order updates (10s)
+    // Refetch immediately when the tab becomes visible (instant sync)
     useEffect(() => {
         if (!user || user.role !== 'seller') return;
-
-        const pollInterval = setInterval(() => {
-            fetchAll();
-        }, 10000);
-
-        return () => clearInterval(pollInterval);
+        const handleVisibility = () => {
+            if (document.visibilityState === 'visible') {
+                fetchAll();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibility);
+        return () => document.removeEventListener('visibilitychange', handleVisibility);
     }, [user, fetchAll]);
 
     const handleProductSubmit = async (e) => {
@@ -1053,7 +1054,18 @@ export default function SellerDashboard() {
                         </div>
 
                         {/* Recent Orders */}
-                        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Recent Orders</h2>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                            <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', margin: 0 }}>
+                                Order Management
+                            </h2>
+                            <button
+                                onClick={fetchAll}
+                                className="btn-secondary"
+                                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px' }}
+                            >
+                                🔄 Refresh
+                            </button>
+                        </div>
                         {orders.slice(0, 5).length === 0 ? (
                             <div className="empty-state" style={{ padding: 40 }}><div className="icon">🛍️</div><h3>No orders yet</h3></div>
                         ) : (
