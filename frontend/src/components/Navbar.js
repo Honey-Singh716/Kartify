@@ -15,7 +15,7 @@ export default function Navbar() {
     const [showCats, setShowCats] = useState(false);
     const [showUser, setShowUser] = useState(false);
 
-    const cartCount = cart.items.reduce((sum, i) => sum + i.qty, 0);
+    const cartCount = Object.values(cart.groups || {}).reduce((sum, g) => sum + g.items.reduce((s, i) => s + i.qty, 0), 0);
 
     const handleSearch = (e) => {
         if (e) e.preventDefault();

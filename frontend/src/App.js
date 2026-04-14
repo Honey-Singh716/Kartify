@@ -43,7 +43,7 @@ const AppProvider = ({ children }) => {
         try { return JSON.parse(localStorage.getItem('kartify_user')); } catch { return null; }
     });
     const [cart, setCart] = useState(() => {
-        try { return JSON.parse(localStorage.getItem('kartify_cart')) || { shopId: null, shopName: '', items: [] }; } catch { return { shopId: null, shopName: '', items: [] }; }
+        try { return JSON.parse(localStorage.getItem('kartify_cart')) || { groups: {} }; } catch { return { groups: {} }; }
     });
     const [toast, setToast] = useState(null);
     const [showAuth, setShowAuth] = useState(false);
@@ -88,19 +88,27 @@ const AppProvider = ({ children }) => {
                     });
                     if (res.ok) {
                         const data = await res.json();
-                        if (data && data.items) {
-                            setCart({
-                                shopId: data.shop?._id || data.shop || null,
-                                shopName: data.shop?.name || '',
-                                items: data.items.map(i => ({
-                                    ...(i.product || {}),
-                                    cartItemId: (i.product && i.variant_id) ? `${i.product._id}-${i.variant_id}` : (i.product?._id || ''),
-                                    variant_id: i.variant_id,
-                                    color: i.color,
-                                    qty: i.quantity,
-                                    image: i.image || i.product?.images?.[0] || ''
-                                })).filter(i => i._id) // Remove any null products
+                        if (data && Array.isArray(data.groups)) {
+                            const groups = {};
+                            data.groups.forEach(g => {
+                                const shopId = g.shop?._id || g.shop;
+                                if (!shopId) return;
+                                groups[shopId] = {
+                                    shopName: g.shop?.name || '',
+                                    items: (g.items || []).map(i => ({
+                                        ...(i.product || {}),
+                                        cartItemId: i.variant_id
+                                            ? `${i.product?._id}-${i.variant_id}`
+                                            : (i.product?._id || ''),
+                                        variant_id: i.variant_id,
+                                        color: i.color,
+                                        qty: i.quantity,
+                                        price: i.price || i.product?.price,
+                                        image: i.image || i.product?.images?.[0] || ''
+                                    })).filter(i => i._id)
+                                };
                             });
+                            setCart({ groups });
                         }
                     }
                 } catch (err) { console.error('Cart sync error:', err); }
@@ -112,20 +120,21 @@ const AppProvider = ({ children }) => {
     const syncCartWithServer = async (updatedCart) => {
         if (!user || user.role !== 'customer') return;
         try {
+            const groups = Object.entries(updatedCart.groups).map(([shopId, g]) => ({
+                shop: shopId,
+                items: g.items.map(i => ({
+                    product: i._id,
+                    variant_id: i.variant_id,
+                    color: i.color,
+                    quantity: i.qty,
+                    price: i.price,
+                    image: i.image
+                }))
+            }));
             await fetch(`${API}/cart`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.token}` },
-                body: JSON.stringify({
-                    shop: updatedCart.shopId,
-                    items: updatedCart.items.map(i => ({
-                        product: i._id,
-                        variant_id: i.variant_id,
-                        color: i.color,
-                        quantity: i.qty,
-                        price: i.price,
-                        image: i.image
-                    }))
-                })
+                body: JSON.stringify({ groups })
             });
         } catch (err) { console.error('Failed to sync cart:', err); }
     };
@@ -138,7 +147,7 @@ const AppProvider = ({ children }) => {
     const logout = useCallback(() => {
         setUser(null);
         setUserProfileLocation(null);
-        setCart({ shopId: null, shopName: '', items: [] });
+        setCart({ groups: {} });
         localStorage.removeItem('kartify_user');
         localStorage.removeItem('kartify_cart');
     }, []);
@@ -150,60 +159,80 @@ const AppProvider = ({ children }) => {
 
     const addToCart = useCallback((product, shopId, shopName, variant = null) => {
         if (!shopId) {
-            // Defensive recovery
             shopId = typeof product.shop === 'object' ? product.shop._id : product.shop;
             shopName = product.shop?.name || '';
         }
-        if (!shopId) return; // Critical failure if still missing
+        if (!shopId) return;
 
         setCart(prev => {
-            if (prev.shopId && prev.shopId !== shopId) {
-                return prev; // signal error outside
-            }
+            const groups = { ...prev.groups };
+            const group = groups[shopId]
+                ? { ...groups[shopId], items: [...groups[shopId].items] }
+                : { shopName, items: [] };
+
             const itemId = variant ? `${product._id}-${variant._id}` : product._id;
-            const existing = prev.items.find(i => i.cartItemId === itemId);
-            let nextItems;
-            if (existing) {
-                nextItems = prev.items.map(i => i.cartItemId === itemId ? { ...i, qty: i.qty + 1 } : i);
+            const existingIdx = group.items.findIndex(i => i.cartItemId === itemId);
+            if (existingIdx >= 0) {
+                group.items = group.items.map(i =>
+                    i.cartItemId === itemId ? { ...i, qty: i.qty + 1 } : i
+                );
             } else {
                 const newItem = {
                     ...product,
                     cartItemId: itemId,
                     variant_id: variant?._id,
                     color: variant?.color,
+                    price: variant ? variant.price ?? product.price : product.price,
                     qty: 1
                 };
                 if (variant && variant.image) newItem.image = variant.image;
-                nextItems = [...prev.items, newItem];
+                group.items = [...group.items, newItem];
             }
-            const nextCart = { shopId, shopName, items: nextItems };
+            groups[shopId] = group;
+            const nextCart = { groups };
             syncCartWithServer(nextCart);
             return nextCart;
         });
     }, [user]);
 
-    const removeFromCart = useCallback((cartItemId) => {
+    const removeFromCart = useCallback((cartItemId, shopId) => {
         setCart(prev => {
-            const items = prev.items.filter(i => i.cartItemId !== cartItemId);
-            const nextCart = items.length === 0 ? { shopId: null, shopName: '', items: [] } : { ...prev, items };
+            const groups = { ...prev.groups };
+            if (!shopId) {
+                // fallback: scan all groups
+                for (const sid of Object.keys(groups)) {
+                    groups[sid] = { ...groups[sid], items: groups[sid].items.filter(i => i.cartItemId !== cartItemId) };
+                    if (groups[sid].items.length === 0) delete groups[sid];
+                }
+            } else if (groups[shopId]) {
+                const items = groups[shopId].items.filter(i => i.cartItemId !== cartItemId);
+                if (items.length === 0) delete groups[shopId];
+                else groups[shopId] = { ...groups[shopId], items };
+            }
+            const nextCart = { groups };
             syncCartWithServer(nextCart);
             return nextCart;
         });
     }, [user]);
 
-    const updateQty = useCallback((cartItemId, qty) => {
+    const updateQty = useCallback((cartItemId, qty, shopId) => {
         setCart(prev => {
-            const nextCart = {
-                ...prev,
-                items: prev.items.map(i => i.cartItemId === cartItemId ? { ...i, qty } : i)
-            };
+            const groups = { ...prev.groups };
+            if (!shopId) {
+                for (const sid of Object.keys(groups)) {
+                    groups[sid] = { ...groups[sid], items: groups[sid].items.map(i => i.cartItemId === cartItemId ? { ...i, qty } : i) };
+                }
+            } else if (groups[shopId]) {
+                groups[shopId] = { ...groups[shopId], items: groups[shopId].items.map(i => i.cartItemId === cartItemId ? { ...i, qty } : i) };
+            }
+            const nextCart = { groups };
             syncCartWithServer(nextCart);
             return nextCart;
         });
     }, [user]);
 
     const clearCart = useCallback(() => {
-        const nextCart = { shopId: null, shopName: '', items: [] };
+        const nextCart = { groups: {} };
         setCart(nextCart);
         if (user && user.role === 'customer') {
             fetch(`${API}/cart`, {

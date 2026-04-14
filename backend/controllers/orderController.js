@@ -20,26 +20,42 @@ const createOrder = async (req, res) => {
             return res.status(400).json({ message: 'Could not determine shop for this order. Please clear your cart and try again.' });
         }
 
-        // Atomic Stock Check and Reduction
+        // ✅ Atomic Stock Check and Reduction (Race-Condition Safe)
+        // Uses a single MongoDB findOneAndUpdate so the check + decrement
+        // happen atomically — no two concurrent requests can both pass.
         for (const item of items) {
-            const product = await Product.findById(item.product_id);
-            if (!product) return res.status(404).json({ message: `Product ${item.name} not found` });
+            // Verify product exists first
+            const exists = await Product.findById(item.product_id).select('_id name');
+            if (!exists) return res.status(404).json({ message: `Product ${item.name} not found` });
 
             if (item.variant_id) {
-                const variant = product.variants.find(v => v._id.toString() === item.variant_id);
-                if (!variant || variant.stock < item.quantity) {
+                // Atomic variant stock decrement — condition is inside the query filter
+                const updated = await Product.findOneAndUpdate(
+                    {
+                        _id: item.product_id,
+                        variants: {
+                            $elemMatch: {
+                                _id: item.variant_id,
+                                stock: { $gte: item.quantity }
+                            }
+                        }
+                    },
+                    { $inc: { "variants.$.stock": -item.quantity } },
+                    { new: true }
+                );
+                if (!updated) {
                     return res.status(400).json({ message: `Insufficient stock for ${item.name} (${item.color})` });
                 }
-                await Product.updateOne(
-                    { _id: item.product_id, "variants._id": item.variant_id },
-                    { $inc: { "variants.$.stock": -item.quantity } }
-                );
             } else {
-                if (product.stock < item.quantity) {
+                // Atomic base stock decrement — condition is inside the query filter
+                const updated = await Product.findOneAndUpdate(
+                    { _id: item.product_id, stock: { $gte: item.quantity } },
+                    { $inc: { stock: -item.quantity } },
+                    { new: true }
+                );
+                if (!updated) {
                     return res.status(400).json({ message: `Insufficient stock for ${item.name}` });
                 }
-                product.stock -= item.quantity;
-                await product.save();
             }
         }
 

@@ -1,0 +1,15 @@
+{"level":"info","message":"🚀 Server running on port 5000 in development mode","timestamp":"2026-04-14T17:12:32.135Z"}
+{"level":"info","message":"✅ MongoDB Connected","timestamp":"2026-04-14T17:12:34.227Z"}
+{"level":"info","message":"GET /favicon.ico","timestamp":"2026-04-14T17:13:13.036Z"}
+{"level":"info","message":"GET /api/products","timestamp":"2026-04-14T17:13:15.148Z"}
+{"level":"info","message":"GET /api/shops","timestamp":"2026-04-14T17:13:15.201Z"}
+{"level":"info","message":"GET /api/shops","timestamp":"2026-04-14T17:13:15.307Z"}
+{"level":"info","message":"GET /api/products","timestamp":"2026-04-14T17:13:15.319Z"}
+{"level":"info","message":"GET /uploads/product-1773512217550","timestamp":"2026-04-14T17:13:15.372Z"}
+{"level":"info","message":"GET /uploads/product-1774452235174.webp","timestamp":"2026-04-14T17:13:15.377Z"}
+{"level":"info","message":"GET /uploads/product-1773839681984.png","timestamp":"2026-04-14T17:13:15.388Z"}
+{"level":"info","message":"GET /favicon.ico","timestamp":"2026-04-14T17:13:51.397Z"}
+{"level":"info","message":"🚀 Server running on port 5000 in development mode","timestamp":"2026-04-14T17:17:50.397Z"}
+{"level":"info","message":"✅ MongoDB Connected","timestamp":"2026-04-14T17:17:51.316Z"}
+{"level":"info","message":"🚀 Server running on port 5000 in development mode","timestamp":"2026-04-14T17:24:17.589Z"}
+{"level":"info","message":"✅ MongoDB Connected","timestamp":"2026-04-14T17:24:18.587Z"}
